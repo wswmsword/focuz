@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>focus-sky demo</title>
+    <link rel="icon" href="./assets/focus-sky.ico" />
+    <meta name="description" content="A demo of focusky">
+    <style>
+      #app, #li1, #li2 {
+        border: 1px solid salmon;
+        padding: 9px;
+        margin: 6px;
+      }
+
+      button:focus {
+        background: black;
+        color: white;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <div id="app" tabindex="-1">
+      <button id="en1">entry</button>
+      <div id="li1" tabindex="-1">
+        <button id="i1">li1.1</button>
+        <button id="ex1">li1.2(exit)</button>
+        <button id="en2">li1.3(entry)</button>
+        <div id="li2" tabindex="-1">
+          <button id="i2">li2.1</button>
+          <button id="ex2">li2.2(exit)</button>
+          <button id="i3">li2.3</button>
+        </div>
+      </div>
+    </div>
+
+  </body>
+  <script src="index.js"></script>
+  <script>
+    focusky({
+      root: "#app",
+      entry: "#en1",
+      exit: "#ex1",
+      outlistExit: true,
+      toggleEntry: true,
+      list: ["#i1", "#ex1", {
+        entry: "#en2",
+        exit: "#ex2",
+        list: ["#i2", "#i3"],
+        range: true,
+        delayEntry: 386,
+        delayExit: 386,
+      }],
+    });
+  </script>
+</html>

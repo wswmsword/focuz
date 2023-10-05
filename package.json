@@ -1,0 +1,38 @@
+{
+  "name": "focus-sky",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Focus management.",
+  "main": "output/focus-sky.cjs",
+  "exports": {
+    "import": "./output/focus-sky.esm.js",
+    "require": "./output/focus-sky.cjs"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "dev": "npm run compile:dev -- --watch",
+    "compile:dev": "BUILD_ENV=dev BABEL_ENV=es5 rollup -c",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wswmsword/focus-sky.git"
+  },
+  "keywords": [
+    "focus",
+    "accessibility",
+    "keyboard"
+  ],
+  "author": "wsWmsword",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wswmsword/focus-sky/issues"
+  },
+  "homepage": "https://github.com/wswmsword/focus-sky#readme",
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.3",
+    "rollup": "^3.29.3",
+    "rollup-plugin-livereload": "^2.0.5",
+    "rollup-plugin-serve": "^2.0.2"
+  }
+}
