@@ -4,11 +4,12 @@ import { delayToProcess, getActiveElement, isEnterEvent, isEscapeEvent, isObj, i
 function focusky(config) {
 
   const {
-      entriesMap, exitsMap,
-      root,
-      lists,
-      tabPortal, shiftTabPortal,
-      entriesFocusInfo, exitsFocusInfo, listsFocusInfo } = resolveFocusConfig(config);
+    entriesMap, exitsMap,
+    root,
+    lists,
+    tabPortal, shiftTabPortal,
+    entriesFocusInfo, exitsFocusInfo, listsFocusInfo
+  } = resolveFocusConfig(config);
 
   const rootEle = document.querySelector(root);
 
@@ -22,11 +23,7 @@ function focusky(config) {
     const target = e.target;
     const selector = '#' + target.id;
     const isEntry = entriesMap.has(selector);
-    const isExit = exitsMap.has(selector);
-    /** 包含当前元素的列表 */
-    const listHadItem = lists.find(li => li.includes(selector));
-    /** 是否是列表的元素 */
-    const isSequenceListItem = listHadItem != null;
+    const isExit = !isEntry && exitsMap.has(selector);
     // 当前在入口
     if (isEntry) {
       // 按下 Enter
@@ -41,6 +38,8 @@ function focusky(config) {
             entryFocusInfo.entered = true;
           }
         });
+
+        return;
       }
     }
     // 当前在出口
@@ -49,8 +48,14 @@ function focusky(config) {
       if (isEnterEvent(e)) {
         const { delay } = exitsFocusInfo.get(selector);
         delayToProcess(delay, () => focusByExit(selector, e));
+
+        return;
       }
     }
+    /** 包含当前元素的列表 */
+    const listHadItem = lists.find(li => li.includes(selector));
+    /** 是否是列表的元素 */
+    const isSequenceListItem = listHadItem != null;
     // 当前在列表（列表为序列模式）
     if (isSequenceListItem) {
       const curListInfo = listsFocusInfo.get(listHadItem);
@@ -96,7 +101,7 @@ function focusky(config) {
     const target = e.target;
     const selector = '#' + target.id;
     const isEntry = entriesMap.has(selector);
-    const isExit = exitsMap.has(selector);
+    const isExit = !isEntry && exitsMap.has(selector);
     if (isEntry) {
       const entryFocusInfo = entriesFocusInfo.get(selector);
       const { delay, toggleEntry, entered } = entryFocusInfo;
