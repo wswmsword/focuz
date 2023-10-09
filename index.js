@@ -45,8 +45,8 @@ function focusky(config) {
     }
     // 当前在出口
     if (isExit) {
-      // 按下 Escape
-      if (isEscapeEvent(e)) {
+      // 按下 Enter
+      if (isEnterEvent(e)) {
         const { delay } = exitsFocusInfo.get(selector);
         delayToProcess(delay, () => focusByExit(selector, e));
       }
