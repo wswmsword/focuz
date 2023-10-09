@@ -194,15 +194,18 @@ var focusky = (function () {
         const prevActiveListInfo = listsFocusInfo.get(listHadPrevActiveItem);
         // 失焦元素是列表元素，并且有 outlist 退出类型
         if (isSequenceListPrevActiveItem && prevActiveListInfo.outlistExit) {
+          // 当前的焦点不在之前的列表中
           if (!listHadPrevActiveItem.includes(activeSelector)) {
-            if (entriesMap.get(activeSelector) == null &&
-              exitsMap.get(activeSelector) == null &&
-              tabPortal.get(activeSelector) == null &&
-              shiftTabPortal.get(activeSelector) == null) {
+            // 之前的焦点不能是入口和出口
+            if (entriesMap.has(prevActiveSelector) == null && exitsMap.has(prevActiveSelector) == null) {
+              // 当前焦点不能是原列表的入口
+              if (!(prevActiveListInfo.outlistExit === activeSelector &&
+                entriesFocusInfo.get(prevActiveListInfo.outlistExit).toggleEntry)) {
                 document.querySelector(prevActiveListInfo.outlistExit).focus();
                 const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
                 entryFocusInfo.entered = false;
               }
+            }
           }
         }
       }, 0);
