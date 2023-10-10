@@ -8,7 +8,7 @@
     <link rel="icon" href="./assets/focus-sky.ico" />
     <meta name="description" content="A demo of focusky">
     <style>
-      #app, #li1, #li2 {
+      #app, #li1, #li2, #li3 {
         border: 1px solid salmon;
         padding: 9px;
         margin: 6px;
@@ -32,7 +32,12 @@
         <div id="li2" tabindex="-1">
           <button id="i2">li2.1</button>
           <button id="ex2">li2.2(exit)</button>
-          <button id="i3">li2.3</button>
+          <button id="en3">li2.3(entry)</button>
+          <div id="li3" tabindex="-1">
+            <button id="i3">li3.1</button>
+            <button id="ex3">li3.2(exit)</button>
+            <button id="i4">li3.3</button>
+          </div>
         </div>
       </div>
     </div>
@@ -49,7 +54,12 @@
       list: ["#i1", "#ex1", {
         entry: "#en2",
         exit: "#ex2",
-        list: ["#i2", "#i3"],
+        list: ["#i2", {
+          entry: "#en3",
+          exit: "#ex3",
+          list: ["#i3", "#i4"],
+          range: true,
+        }],
         range: true,
         delayEntry: 386,
         delayExit: 386,
