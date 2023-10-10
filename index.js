@@ -17,6 +17,12 @@ function focusky(config) {
   let focusedListItemByNavList = false;
   /** 当前聚焦的列表元素是通过点击聚焦的 */
   let focusedListItemByMouse = false;
+  /** 是否触发了开关的 mousedown，如果是，则代表当前触发的是开关，需要忽略跳过列表的 blur 事件 */
+  let triggeredToggleByMouse = false;
+  /** 通过入口转移焦点 */
+  let focusedByEntry = false;
+  /** 通过出口转移焦点 */
+  let focusedByExit = false;
 
   rootEle.addEventListener("keydown", function(e) {
 
@@ -143,6 +149,14 @@ function focusky(config) {
   });
 
   rootEle.addEventListener("focusout", function(e) {
+    // 用于保护可切换的入口（开关，同时作为出口的入口）能够被触发；也可用 relatedTarget 判断，但 relatedTarget 不兼容 Safari（23.09.08）
+    if (triggeredToggleByMouse)
+      return triggeredToggleByMouse = false;
+
+    // 若是通过入口或出口转移焦点，则无需触发 outlist 出口
+    if (focusedByEntry || focusedByExit)
+      return;
+
     setTimeout(() => {
       const active = getActiveElement();
       /** 失焦之后聚焦的元素 */
@@ -159,16 +173,9 @@ function focusky(config) {
       if (isSequenceListPrevActiveItem && prevActiveListInfo.outlistExit) {
         // 当前的焦点不在之前的列表中
         if (!listHadPrevActiveItem.includes(activeSelector)) {
-          // 之前的焦点不能是入口和出口
-          if (entriesMap.has(prevActiveSelector) == null && exitsMap.has(prevActiveSelector) == null) {
-            // 当前焦点不能是原列表的入口
-            if (!(prevActiveListInfo.outlistExit === activeSelector &&
-              entriesFocusInfo.get(prevActiveListInfo.outlistExit).toggleEntry)) {
-              document.querySelector(prevActiveListInfo.outlistExit).focus();
-              const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
-              entryFocusInfo.entered = false;
-            }
-          }
+          document.querySelector(prevActiveListInfo.outlistExit).focus();
+          const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
+          entryFocusInfo.entered = false;
         }
       }
     }, 0);
@@ -187,6 +194,10 @@ function focusky(config) {
       focusedListItemByMouse = true;
       delayToProcess(0, () => focusedListItemByMouse = false);
     }
+
+    /** 是否是开关入口 */
+    const isToggle = entriesMap.has(selector) && entriesFocusInfo.get(selector).toggleEntry;
+    triggeredToggleByMouse = isToggle;
   });
 
   /** 更新最后一次聚焦的列表元素 */
@@ -206,16 +217,20 @@ function focusky(config) {
     e.preventDefault();
     const entryList = entriesMap.get(selector);
     const curListInfo = listsFocusInfo.get(entryList);
+    focusedByEntry = true; // 本行放在 `.focus` 之上是必须的，事件循环相关
     document.querySelector(entryList[curListInfo?.lastFocusIdx || 0]).focus();
+    setTimeout(() => focusedByEntry = false, 0);
   }
 
   /** 通过出口返回至入口 */
   function focusByExit(selector, e) {
     e.preventDefault();
     const exitTarget = exitsMap.get(selector);
+    focusedByExit = true; // 本行放在 `.focus` 之上是必须的，事件循环相关
     document.querySelector(exitTarget).focus();
     const entryFocusInfo = entriesFocusInfo.get(exitTarget);
     entryFocusInfo.entered = false;
+    setTimeout(() => focusedByExit = false, 0);
   }
 }
 
