@@ -14,6 +14,11 @@
         margin: 6px;
       }
 
+      button {
+        width: 127px;
+        margin-right: 12px;
+      }
+
       button:focus {
         background: black;
         color: white;
@@ -50,6 +55,7 @@
       entry: "#en1",
       exit: "#ex1",
       outlistExit: true,
+      escapeExit: true,
       toggleEntry: true,
       list: ["#i1", "#ex1", {
         entry: "#en2",
@@ -57,8 +63,8 @@
         list: ["#i2", {
           entry: "#en3",
           exit: "#ex3",
-          list: ["#i3", "#i4"],
-          range: true,
+          list: ["#i3", "#ex3", "#i4"],
+          escapeExit: true,
         }],
         range: true,
         delayEntry: 386,
