@@ -28,6 +28,21 @@ function focusky(config) {
 
     const target = e.target;
     const selector = '#' + target.id;
+
+    if (isEscapeEvent(e)) {
+      /** 包含当前元素的列表 */
+      const listHadItem = lists.find(li => li.includes(selector));
+      /** 是否是列表的元素 */
+      const isSequenceListItem = listHadItem != null;
+      if (isSequenceListItem) {
+        const curListInfo = listsFocusInfo.get(listHadItem);
+        if (curListInfo.escExit) {
+          document.querySelector(curListInfo.escExit).focus();
+          return;
+        }
+      }
+    }
+
     const isEntry = entriesMap.has(selector);
     const isExit = !isEntry && exitsMap.has(selector);
     // 当前在入口
@@ -263,7 +278,7 @@ function generateFocusDataByTravellingConfig(
     }
   } else if (isObj(obj)) { // 是否为对象
 
-    const { entry, exit, list, range, delayEntry, delayExit, outlistExit, toggleEntry } = obj;
+    const { entry, exit, list, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit } = obj;
     /** 是否是范围模式 */
     const isRangeMode = range === true;
     /** 不包含子信息的纯列表 */
@@ -288,6 +303,7 @@ function generateFocusDataByTravellingConfig(
     listsFocusInfo.set(pureList, {
       lastFocusIdx: 0, // 最后一次聚焦的 id
       outlistExit: outlistExit ? entry : false,
+      escExit: escapeExit ? entry : false,
     });
     generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo);
   }
