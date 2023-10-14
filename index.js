@@ -175,7 +175,7 @@ function focusky(config) {
     setTimeout(() => {
       const active = getActiveElement();
       /** 失焦之后聚焦的元素 */
-      const activeSelector = '#' + active.id;
+      const activeSelector = active.id ? '#' + active.id : null;
       /** 失焦的元素 */
       const prevActiveSelector = '#' + e.target.id;
 
@@ -186,8 +186,8 @@ function focusky(config) {
       const prevActiveListInfo = listsFocusInfo.get(listHadPrevActiveItem);
       // 失焦元素是列表元素，并且有 outlist 退出类型
       if (isSequenceListPrevActiveItem && prevActiveListInfo.outlistExit) {
-        // 当前的焦点不在之前的列表中
-        if (!listHadPrevActiveItem.includes(activeSelector)) {
+        // 当前的焦点不在列表之中
+        if (!document.querySelector(prevActiveListInfo.wrap).contains(document.querySelector(activeSelector))) {
           document.querySelector(prevActiveListInfo.outlistExit).focus();
           const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
           entryFocusInfo.entered = false;
@@ -278,7 +278,7 @@ function generateFocusDataByTravellingConfig(
     }
   } else if (isObj(obj)) { // 是否为对象
 
-    const { entry, exit, list, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit } = obj;
+    const { entry, exit, list, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap } = obj;
     /** 是否是范围模式 */
     const isRangeMode = range === true;
     /** 不包含子信息的纯列表 */
@@ -304,6 +304,7 @@ function generateFocusDataByTravellingConfig(
       lastFocusIdx: 0, // 最后一次聚焦的 id
       outlistExit: outlistExit ? entry : false,
       escExit: escapeExit ? entry : false,
+      wrap: listWrap,
     });
     generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo);
   }
