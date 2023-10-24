@@ -23,6 +23,8 @@ function focusky(config) {
   let focusedByEntry = false;
   /** 通过出口转移焦点 */
   let focusedByExit = false;
+  /** 当前聚焦的列表 */
+  let currentList = null;
 
   rootEle.addEventListener("keydown", function(e) {
 
@@ -30,14 +32,11 @@ function focusky(config) {
     const selector = '#' + target.id;
 
     if (isEscapeEvent(e)) {
-      /** 包含当前元素的列表 */
-      const listHadItem = lists.find(li => li.includes(selector));
-      /** 是否是列表的元素 */
-      const isSequenceListItem = listHadItem != null;
-      if (isSequenceListItem) {
-        const curListInfo = listsFocusInfo.get(listHadItem);
-        if (curListInfo.escExit) {
-          document.querySelector(curListInfo.escExit).focus();
+      if (currentList != null) {
+        const listInfo = listsFocusInfo.get(currentList);
+        if (listInfo.escExit) {
+          document.querySelector(listInfo.escExit).focus();
+          updateCurrentList(listInfo.parentList); // 即将落入的列表是当前列表的父列表
           return;
         }
       }
@@ -54,6 +53,7 @@ function focusky(config) {
         delayToProcess(delay, () => {
           if (toggleEntry && entered) {
             entryFocusInfo.entered = false;
+            updateCurrentList(entryFocusInfo.parentList);
           } else {
             focusByEntry(selector, e);
             entryFocusInfo.entered = true;
@@ -131,6 +131,7 @@ function focusky(config) {
       delayToProcess(delay, () => {
         if (toggleEntry && entered) {
           entryFocusInfo.entered = false;
+          updateCurrentList(entryFocusInfo.parentList);
         } else {
           focusByEntry(selector, e);
           updateListLastFocusIdx(selector);
@@ -160,6 +161,7 @@ function focusky(config) {
       if (curListInfo) {
         const lastFocusIdx = curListInfo.lastFocusIdx;
         document.querySelector(listHadItem[lastFocusIdx]).focus();
+        updateCurrentList(listHadItem);
         e.preventDefault();
       }
     }
@@ -191,6 +193,7 @@ function focusky(config) {
         // 当前的焦点不在列表之中
         if (!document.querySelector(prevActiveListInfo.wrap).contains(document.querySelector(activeSelector))) {
           document.querySelector(prevActiveListInfo.outlistExit).focus();
+          updateCurrentList(prevActiveListInfo.parentList);
           const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
           entryFocusInfo.entered = false;
         }
@@ -233,6 +236,7 @@ function focusky(config) {
   function focusByEntry(selector, e) {
     e.preventDefault();
     const entryList = entriesMap.get(selector);
+    updateCurrentList(entryList);
     const curListInfo = listsFocusInfo.get(entryList);
     focusedByEntry = true; // 本行放在 `.focus` 之上是必须的，事件循环相关
     document.querySelector(entryList[curListInfo?.lastFocusIdx || 0]).focus();
@@ -247,7 +251,13 @@ function focusky(config) {
     document.querySelector(exitTarget).focus();
     const entryFocusInfo = entriesFocusInfo.get(exitTarget);
     entryFocusInfo.entered = false;
+    updateCurrentList(entriesFocusInfo.parentList);
     setTimeout(() => focusedByExit = false, 0);
+  }
+
+  /** 更新当前聚焦的列表 */
+  function updateCurrentList(list) {
+    currentList = list;
   }
 }
 
@@ -270,13 +280,14 @@ function generateFocusDataByTravellingConfig(
   entriesMap = new Map(), exitsMap = new Map(),
   lists = [],
   tabPortal = new Map(), shiftTabPortal = new Map(),
-  entriesFocusInfo = new Map(), exitsFocusInfo = new Map(), listsFocusInfo = new Map()) {
+  entriesFocusInfo = new Map(), exitsFocusInfo = new Map(), listsFocusInfo = new Map(),
+  parentList = null) {
 
   // 是否为数组
   if (Array.isArray(obj)) {
 
     for (const ele of obj) {
-      generateFocusDataByTravellingConfig(ele, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo);
+      generateFocusDataByTravellingConfig(ele, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, parentList);
     }
   } else if (isObj(obj)) { // 是否为对象
 
@@ -298,17 +309,20 @@ function generateFocusDataByTravellingConfig(
       delay: delayEntry,
       entered: false, // 是否进入
       toggleEntry, // 该入口是否同时支持退出？
+      parentList,
     });
     exitsFocusInfo.set(exit, {
-      delay: delayExit
+      delay: delayExit,
+      parentList,
     });
     listsFocusInfo.set(pureList, {
       lastFocusIdx: 0, // 最后一次聚焦的 id
-      outlistExit: outlistExit ? entry : false,
-      escExit: escapeExit ? entry : false,
+      outlistExit: outlistExit ? entry : false, // 蒙层出口
+      escExit: escapeExit ? entry : false, // esc 出口
+      parentList,
       wrap: listWrap,
     });
-    generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo);
+    generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, pureList);
   }
 
   return { entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo };
