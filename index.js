@@ -111,8 +111,10 @@ function focusky(config) {
       }
       if (isTabBackward(e)) {
         const rangeHeadTarget = shiftTabPortal.get(selector);
-        document.querySelector(rangeHeadTarget).focus(); // 聚焦
-        e.preventDefault(); // 阻止默认行为
+        if (rangeHeadTarget != null) {
+          document.querySelector(rangeHeadTarget).focus(); // 聚焦
+          e.preventDefault(); // 阻止默认行为
+        }
       }
     }
   });
