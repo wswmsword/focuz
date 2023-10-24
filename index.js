@@ -96,8 +96,8 @@ function focusky(config) {
       function focusNext(nextFocusIdx) {
         curListInfo.lastFocusIdx = nextFocusIdx; // 更新 lastFocusIdx
         const nextFocusedEle = document.querySelector(listHadItem[nextFocusIdx]);
-        nextFocusedEle.focus(); // 聚焦
         focusedListItemByNavList = true; // 用于矫正从外部进入列表的焦点
+        nextFocusedEle.focus(); // 聚焦
         e.preventDefault(); // 阻止默认行为
         delayToProcess(0, () => focusedListItemByNavList = false); // 下一个事件循环重置
       };
