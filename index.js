@@ -36,8 +36,10 @@ function focusky(config) {
       if (currentList != null) {
         const listInfo = listsFocusInfo.get(currentList);
         if (listInfo.escExit) {
+          focusedByExit = true;
           document.querySelector(listInfo.escExit).focus();
           updateCurrentList(listInfo.parentList); // 即将落入的列表是当前列表的父列表
+          setTimeout(() => focusedByExit = false, 0);
           return;
         }
       }
@@ -153,6 +155,8 @@ function focusky(config) {
 
     const target = e.target;
     const selector = '#' + target.id;
+
+    if (focusedByEntry || focusedByExit) return;
 
     // 如果不是通过导航聚焦的列表元素，则需要矫正
     if (focusedListItemByNavList === false && focusedListItemByMouse === false) {
