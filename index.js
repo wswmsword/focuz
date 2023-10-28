@@ -8,7 +8,8 @@ function focusky(config) {
     root,
     lists,
     tabPortal, shiftTabPortal,
-    entriesFocusInfo, exitsFocusInfo, listsFocusInfo
+    entriesFocusInfo, exitsFocusInfo, listsFocusInfo,
+    listWrapInfo,
   } = resolveFocusConfig(config);
 
   const rootEle = document.querySelector(root);
@@ -209,10 +210,24 @@ function focusky(config) {
     const listHadItem = lists.find(li => li.includes(selector));
     /** 是否是列表的元素 */
     const isSequenceListItem = listHadItem != null;
+    /** 是否已通过序列模式的元素更新 currentList */
+    let updatedCurrentListBySequenceItem = false;
     if (isSequenceListItem) {
       updateListLastFocusIdx(selector, listHadItem);
+      updateCurrentList(listHadItem);
+      updatedCurrentListBySequenceItem = true;
       focusedListItemByMouse = true;
       delayToProcess(0, () => focusedListItemByMouse = false);
+    }
+
+    if (!updatedCurrentListBySequenceItem) {
+      let currentList = listWrapInfo.get(selector);
+      if (currentList == null) { // 点到了范围模式的按钮
+        const parentEle = e.target.parentElement;
+        const parentSelector = '#' + (parentEle || {}).id;
+        currentList = listWrapInfo.get(parentSelector);
+      }
+      updateCurrentList(currentList);
     }
 
     /** 是否是开关入口 */
@@ -281,13 +296,14 @@ function generateFocusDataByTravellingConfig(
   lists = [],
   tabPortal = new Map(), shiftTabPortal = new Map(),
   entriesFocusInfo = new Map(), exitsFocusInfo = new Map(), listsFocusInfo = new Map(),
+  listWrapInfo = new Map(),
   parentList = null) {
 
   // 是否为数组
   if (Array.isArray(obj)) {
 
     for (const ele of obj) {
-      generateFocusDataByTravellingConfig(ele, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, parentList);
+      generateFocusDataByTravellingConfig(ele, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, listWrapInfo, parentList);
     }
   } else if (isObj(obj)) { // 是否为对象
 
@@ -322,10 +338,11 @@ function generateFocusDataByTravellingConfig(
       parentList,
       wrap: listWrap,
     });
-    generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, pureList);
+    listWrapInfo.set(listWrap, pureList);
+    generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, listWrapInfo, pureList);
   }
 
-  return { entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo };
+  return { entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, listWrapInfo };
 }
 
 export default focusky;
