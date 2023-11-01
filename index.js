@@ -264,7 +264,7 @@ function focusky(config) {
     document.querySelector(exitTarget).focus();
     const entryFocusInfo = entriesFocusInfo.get(exitTarget);
     entryFocusInfo.entered = false;
-    updateCurrentList(entriesFocusInfo.parentList);
+    updateCurrentList(entryFocusInfo.parentList);
     setTimeout(() => focusedByExit = false, 0);
   }
 
