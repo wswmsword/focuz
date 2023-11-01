@@ -172,7 +172,7 @@ function focusky(config) {
     }
   });
 
-  rootEle.addEventListener("focusout", function(e) {
+  rootEle.addEventListener("focusout", function() {
     // 用于保护可切换的入口（开关，同时作为出口的入口）能够被触发；也可用 relatedTarget 判断，但 relatedTarget 不兼容 Safari（23.09.08）
     if (triggeredToggleByMouse)
       return triggeredToggleByMouse = false;
@@ -185,16 +185,10 @@ function focusky(config) {
       const active = getActiveElement();
       /** 失焦之后聚焦的元素 */
       const activeSelector = active.id ? '#' + active.id : null;
-      /** 失焦的元素 */
-      const prevActiveSelector = '#' + e.target.id;
-
-      /** 失焦元素所在列表 */
-      const listHadPrevActiveItem = lists.find(li => li.includes(prevActiveSelector));
       /** 失焦元素是否是列表的元素 */
-      const isSequenceListPrevActiveItem = listHadPrevActiveItem != null;
-      const prevActiveListInfo = listsFocusInfo.get(listHadPrevActiveItem);
+      const prevActiveListInfo = listsFocusInfo.get(currentList);
       // 失焦元素是列表元素，并且有 outlist 退出类型
-      if (isSequenceListPrevActiveItem && prevActiveListInfo.outlistExit) {
+      if (currentList != null && prevActiveListInfo.outlistExit) {
         // 当前的焦点不在列表之中
         if (!document.querySelector(prevActiveListInfo.wrap).contains(document.querySelector(activeSelector))) {
           document.querySelector(prevActiveListInfo.outlistExit).focus();
