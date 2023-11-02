@@ -76,6 +76,23 @@ function focusky(config) {
         return;
       }
     }
+
+    /** 当前的焦点处于列表的 wrap  */
+    let focusedListWrap = !!listWrapInfo.get(selector);
+    // 焦点保护
+    if (focusedListWrap) {
+      if (isTabBackward(e)) {
+        const curListInfo = listsFocusInfo.get(currentList);
+        const nextFocus = curListInfo.range ? currentList.at(-1) : currentList[curListInfo.lastFocusIdx];
+        const nextFocusEle = document.querySelector(nextFocus);
+        focusedListItemByNavList = true; // 用于矫正从外部进入列表的焦点
+        nextFocusEle.focus();
+        delayToProcess(0, () => focusedListItemByNavList = false); // 下一个事件循环重置
+        e.preventDefault(); // 阻止默认行为
+        return ;
+      }
+    }
+
     /** 包含当前元素的列表 */
     const listHadItem = lists.find(li => li.includes(selector));
     /** 是否是列表的元素 */
@@ -344,6 +361,7 @@ function generateFocusDataByTravellingConfig(
       escExit: escapeExit ? entry : false, // esc 出口
       parentList,
       wrap: listWrap,
+      range: isRangeMode,
     });
     listWrapInfo.set(listWrap, pureList);
     generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, listWrapInfo, pureList);
