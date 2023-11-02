@@ -204,28 +204,32 @@ function focusky(config) {
 
     const target = e.target;
     const selector = '#' + target.id;
-    /** 包含当前元素的列表 */
-    const listHadItem = lists.find(li => li.includes(selector));
-    /** 是否是列表的元素 */
-    const isSequenceListItem = listHadItem != null;
-    /** 是否已通过序列模式的元素更新 currentList */
-    let updatedCurrentListBySequenceItem = false;
-    if (isSequenceListItem) {
-      updateListLastFocusIdx(selector, listHadItem);
-      updateCurrentList(listHadItem);
-      updatedCurrentListBySequenceItem = true;
-      focusedListItemByMouse = true;
-      delayToProcess(0, () => focusedListItemByMouse = false);
+
+    // 1. 首先通过 wrap 确定列表
+    let currentList = listWrapInfo.get(selector);
+    if (currentList == null) { // 点到了范围模式的按钮
+      const parentEle = e.target.parentElement;
+      const parentSelector = '#' + (parentEle || {}).id;
+      currentList = listWrapInfo.get(parentSelector);
     }
 
-    if (!updatedCurrentListBySequenceItem) {
-      let currentList = listWrapInfo.get(selector);
-      if (currentList == null) { // 点到了范围模式的按钮
-        const parentEle = e.target.parentElement;
-        const parentSelector = '#' + (parentEle || {}).id;
-        currentList = listWrapInfo.get(parentSelector);
+    // 2. 若无 wrap，则通过列表元素确定列表
+    if (currentList == null) {
+      /** 包含当前元素的列表 */
+      const listHadItem = lists.find(li => li.includes(selector));
+      /** 是否是列表的元素 */
+      const isSequenceListItem = listHadItem != null;
+      if (isSequenceListItem) { // 序列模式，范围模式不确定，因此不考虑
+        updateListLastFocusIdx(selector, listHadItem);
+        currentList = listHadItem;
       }
-      updateCurrentList(currentList);
+    }
+
+    updateCurrentList(currentList);
+
+    if (currentList != null) {
+      focusedListItemByMouse = true;
+      delayToProcess(0, () => focusedListItemByMouse = false);
     }
 
     /** 是否是开关入口 */
