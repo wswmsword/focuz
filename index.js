@@ -211,6 +211,8 @@ function focusky(config) {
       const parentEle = e.target.parentElement;
       const parentSelector = '#' + (parentEle || {}).id;
       currentList = listWrapInfo.get(parentSelector);
+
+      focusedListItem();
     }
 
     // 2. 若无 wrap，则通过列表元素确定列表
@@ -222,19 +224,22 @@ function focusky(config) {
       if (isSequenceListItem) { // 序列模式，范围模式不确定，因此不考虑
         updateListLastFocusIdx(selector, listHadItem);
         currentList = listHadItem;
+
+        focusedListItem();
       }
     }
 
     updateCurrentList(currentList);
 
-    if (currentList != null) {
-      focusedListItemByMouse = true;
-      delayToProcess(0, () => focusedListItemByMouse = false);
-    }
-
     /** 是否是开关入口 */
     const isToggle = entriesMap.has(selector) && entriesFocusInfo.get(selector).toggleEntry;
     triggeredToggleByMouse = isToggle;
+
+    /** 具体点击到了列表内的某个元素 */
+    function focusedListItem() {
+      focusedListItemByMouse = true;
+      delayToProcess(0, () => focusedListItemByMouse = false);
+    }
   });
 
   /** 更新最后一次聚焦的列表元素 */
