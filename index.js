@@ -93,21 +93,21 @@ function focusky(config) {
       }
     }
 
-    /** 包含当前元素的列表 */
-    const listHadItem = lists.find(li => li.includes(selector));
+    const curListInfo = listsFocusInfo.get(currentList);
+    /** 当前是否范围模式列表 */
+    const isRangeList = curListInfo && curListInfo.range;
     /** 是否是列表的元素 */
-    const isSequenceListItem = listHadItem != null;
+    const isSequenceListItem = !isRangeList && currentList && currentList.includes(selector);
     // 当前在列表（列表为序列模式）
     if (isSequenceListItem) {
-      const curListInfo = listsFocusInfo.get(listHadItem);
       const lastFocusIdx = curListInfo.lastFocusIdx;
-      const itemsLen = listHadItem.length;
+      const itemsLen = currentList.length;
       if (isTabForward(e)) {
         /** 下一个聚焦元素的 id */
         const nextFocusIdx = (lastFocusIdx + 1) % itemsLen;
         focusNext(nextFocusIdx);
       }
-      if (isTabBackward(e)) {
+      else if (isTabBackward(e)) {
         const nextFocusIdx = (lastFocusIdx - 1 + itemsLen) % itemsLen;
         focusNext(nextFocusIdx);
       }
@@ -115,13 +115,15 @@ function focusky(config) {
       /** 聚焦下一个元素 */
       function focusNext(nextFocusIdx) {
         curListInfo.lastFocusIdx = nextFocusIdx; // 更新 lastFocusIdx
-        const nextFocusedEle = document.querySelector(listHadItem[nextFocusIdx]);
+        const nextFocusedEle = document.querySelector(currentList[nextFocusIdx]);
         focusedListItemByNavList = true; // 用于矫正从外部进入列表的焦点
         nextFocusedEle.focus(); // 聚焦
         e.preventDefault(); // 阻止默认行为
         delayToProcess(0, () => focusedListItemByNavList = false); // 下一个事件循环重置
       };
-    } else {
+    }
+    // 当前在范围模式的列表
+    else if (isRangeList) {
       if (isTabForward(e)) {
         const rangeTailTarget = tabPortal.get(selector);
         if (rangeTailTarget != null) {
