@@ -224,31 +224,35 @@ function focusky(config) {
     const target = e.target;
     const selector = '#' + target.id;
 
-    // 1. 首先通过 wrap 确定列表
-    let currentList = listWrapInfo.get(selector);
-    if (currentList == null) { // 点到了范围模式的按钮
-      const parentEle = e.target.parentElement;
-      const parentSelector = '#' + (parentEle || {}).id;
-      currentList = listWrapInfo.get(parentSelector);
-
-      focusedListItem();
+    // 1. 首先通过 wrap 确定列表，此时最期望用户点击非列表元素的空白区域
+    let wrappedList = listWrapInfo.get(selector);
+    if (wrappedList == null) { // 点到了列表元素，或是范围模式的区域
+      let curElement = e.target;
+      while(curElement = curElement.parentElement) {
+        const parentSelector = '#' + (curElement || {}).id;
+        wrappedList = listWrapInfo.get(parentSelector);
+        if (wrappedList != null) {
+          focusedListItem();
+          break;
+        }
+      }
     }
 
-    // 2. 若无 wrap，则通过列表元素确定列表
-    if (currentList == null) {
+    // 2. 若无 wrap，则通过列表元素确定列表，这种情况则不再能够判断范围模式的列表
+    if (wrappedList == null) {
       /** 包含当前元素的列表 */
       const listHadItem = lists.find(li => li.includes(selector));
       /** 是否是列表的元素 */
       const isSequenceListItem = listHadItem != null;
       if (isSequenceListItem) { // 序列模式，范围模式不确定，因此不考虑
         updateListLastFocusIdx(selector, listHadItem);
-        currentList = listHadItem;
+        wrappedList = listHadItem;
 
         focusedListItem();
       }
     }
 
-    updateCurrentList(currentList);
+    updateCurrentList(wrappedList);
 
     /** 是否是开关入口 */
     const isToggle = entriesMap.has(selector) && entriesFocusInfo.get(selector).toggleEntry;
