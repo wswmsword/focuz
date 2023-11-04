@@ -274,7 +274,7 @@ function focusky(config) {
     const listHadItem = list || (lists.find(li => li.includes(selector)));
     /** 是否是列表的元素 */
     const isSequenceListItem = listHadItem != null;
-    if (isSequenceListItem) {
+    if (isSequenceListItem && listHadItem.includes(selector)) {
       const curListInfo = listsFocusInfo.get(listHadItem);
       curListInfo.lastFocusIdx = listHadItem.findIndex(li => li === selector);
     }
