@@ -156,7 +156,6 @@ function focusky(config) {
           updateCurrentList(entryFocusInfo.parentList);
         } else {
           focusByEntry(selector, e);
-          updateListLastFocusIdx(selector);
           entryFocusInfo.entered = true;
         }
       });
@@ -165,7 +164,6 @@ function focusky(config) {
       const { delay } = exitsFocusInfo.get(selector);
       delayToProcess(delay, () => {
         focusByExit(selector, e);
-        updateListLastFocusIdx(selector);
       });
     }
   });
@@ -226,13 +224,16 @@ function focusky(config) {
 
     // 1. 首先通过 wrap 确定列表，此时最期望用户点击非列表元素的空白区域
     let wrappedList = listWrapInfo.get(selector);
+    /** 是否是序列模式的列表 */
+    let isSequenceList = false;
     if (wrappedList == null) { // 点到了列表元素，或是范围模式的区域
       let curElement = e.target;
       while(curElement = curElement.parentElement) {
         const parentSelector = '#' + (curElement || {}).id;
         wrappedList = listWrapInfo.get(parentSelector);
         if (wrappedList != null) {
-          focusedListItem();
+          isSequenceList = !listsFocusInfo.get(wrappedList).range;
+          focusedListItem(); // 由于范围模式不支持焦点矫正，因此这里包容由范围模式触发的情况
           break;
         }
       }
@@ -243,16 +244,18 @@ function focusky(config) {
       /** 包含当前元素的列表 */
       const listHadItem = lists.find(li => li.includes(selector));
       /** 是否是列表的元素 */
-      const isSequenceListItem = listHadItem != null;
-      if (isSequenceListItem) { // 序列模式，范围模式不确定，因此不考虑
-        updateListLastFocusIdx(selector, listHadItem);
+      isSequenceList = listHadItem != null;
+      if (isSequenceList) { // 序列模式，范围模式不确定，因此不考虑
         wrappedList = listHadItem;
-
         focusedListItem();
       }
     }
 
     updateCurrentList(wrappedList);
+
+    // 若是序列模式，则要更新序列最后被聚焦的元素
+    if (isSequenceList)
+      updateListLastFocusIdx(selector, wrappedList);
 
     /** 是否是开关入口 */
     const isToggle = entriesMap.has(selector) && entriesFocusInfo.get(selector).toggleEntry;
