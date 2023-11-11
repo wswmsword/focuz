@@ -1,0 +1,34 @@
+#app, #li1, #li2, #li3 {
+  border: 1px solid salmon;
+  padding: 9px;
+  margin: 6px;
+  position: relative;
+}
+
+button {
+  width: 127px;
+  margin-right: 12px;
+}
+
+button:focus {
+  background: black;
+  color: white;
+}
+
+.mark {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.double {
+  display: flex;
+}
+#li4, #li5 {
+  width: 100%;
+  flex: 1;
+  border: 1px solid salmon;
+  padding: 9px;
+  margin: 6px;
+  position: relative;
+}

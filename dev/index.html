@@ -7,30 +7,7 @@
     <title>focus-sky demo</title>
     <link rel="icon" href="./assets/focus-sky.ico" />
     <meta name="description" content="A demo of focusky">
-    <style>
-      #app, #li1, #li2, #li3 {
-        border: 1px solid salmon;
-        padding: 9px;
-        margin: 6px;
-        position: relative;
-      }
-
-      button {
-        width: 127px;
-        margin-right: 12px;
-      }
-
-      button:focus {
-        background: black;
-        color: white;
-      }
-
-      .mark {
-        position: absolute;
-        top: 0;
-        right: 0;
-      }
-    </style>
+    <link rel="stylesheet" href="./index.css" />
   </head>
 
   <body>
@@ -47,10 +24,23 @@
           <button id="ex2">li2.2(exit)</button>
           <button id="en3">li2.3(entry)</button>
           <div id="li3" tabindex="-1">
-            <button id="i3">li3.1</button>
+            <button id="en4">li3.1(left entry)</button>
             <button id="ex3">li3.2(exit)</button>
-            <button id="i4">li3.3</button>
+            <button id="en5">li3.3(right entry)</button>
             <div>Now And Then - The Beatles</div>
+            <div class="double">
+              <div id="li4" tabindex="-1">
+                <span class="mark">range</span>
+                <button id="i3">li4.1</button>
+                <button>li4.2</button>
+                <button id="ex4">li4.3(exit)</button>
+              </div>
+              <div id="li5" tabindex="-1">
+                <button id="i5">li5.1</button>
+                <button id="i6">li5.2</button>
+                <button id="ex5">li5.3(exit)</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -58,33 +48,5 @@
 
   </body>
   <script src="index.js"></script>
-  <script>
-    focusky({
-      root: "#app",
-      entry: "#en1",
-      exit: "#ex1",
-      outlistExit: true,
-      escapeExit: true,
-      toggleEntry: true,
-      list: ["#i1", "#ex1", {
-        entry: "#en2",
-        exit: "#ex2",
-        list: ["#i2", {
-          entry: "#en3",
-          exit: "#ex3",
-          list: ["#i3", "#ex3", "#i4"],
-          listWrap: "#li3",
-          escapeExit: true,
-        }],
-        listWrap: "#li2",
-        range: true,
-        escapeExit: true,
-        delayEntry: 386,
-        delayExit: 386,
-        outlistExit: true,
-      }],
-      listWrap: "#li1",
-      initActive: 1,
-    });
-  </script>
+  <script src="./focus.js"></script>
 </html>
