@@ -83,7 +83,8 @@ function focusky(config) {
     if (focusedListWrap) {
       if (isTabBackward(e)) {
         const curListInfo = listsFocusInfo.get(currentList);
-        const nextFocus = curListInfo.range ? currentList.at(-1) : currentList[curListInfo.lastFocusIdx];
+        const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, currentList.length);
+        const nextFocus = curListInfo.range ? currentList.at(-1) : currentList[nextFocusIdx];
         const nextFocusEle = document.querySelector(nextFocus);
         focusedListItemByNavList = true; // 用于矫正从外部进入列表的焦点
         nextFocusEle.focus();
@@ -100,8 +101,8 @@ function focusky(config) {
     const isSequenceListItem = !isRangeList && currentList && currentList.includes(selector);
     // 当前在列表（列表为序列模式）
     if (isSequenceListItem) {
-      const lastFocusIdx = curListInfo.lastFocusIdx;
       const itemsLen = currentList.length;
+      const lastFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, itemsLen);
       if (isTabForward(e)) {
         /** 下一个聚焦元素的 id */
         const nextFocusIdx = (lastFocusIdx + 1) % itemsLen;
@@ -182,8 +183,8 @@ function focusky(config) {
       const listHadItem = lists.find(li => li.includes(selector));
       const curListInfo = listsFocusInfo.get(listHadItem);
       if (curListInfo) {
-        const lastFocusIdx = curListInfo.lastFocusIdx;
-        document.querySelector(listHadItem[lastFocusIdx]).focus();
+        const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, listHadItem.length);
+        document.querySelector(listHadItem[nextFocusIdx]).focus();
         updateCurrentList(listHadItem);
         e.preventDefault();
       }
@@ -288,7 +289,8 @@ function focusky(config) {
     updateCurrentList(entryList);
     const curListInfo = listsFocusInfo.get(entryList);
     focusedByEntry = true; // 本行放在 `.focus` 之上是必须的，事件循环相关
-    document.querySelector(entryList[curListInfo?.lastFocusIdx || 0]).focus();
+    const nextIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo?.lastFocusIdx, curListInfo?.initFocusIdx, entryList.length);
+    document.querySelector(entryList[nextIdx]).focus();
     setTimeout(() => focusedByEntry = false, 0);
   }
 
@@ -308,6 +310,17 @@ function focusky(config) {
   function updateCurrentList(list) {
     currentList = list;
   }
+}
+
+/** 通过最后一次聚焦的列表元素 id 和初始 id，获得下一次的列表聚焦元素 id */
+function getNextIdxByLastFocusIdxAndInitFocusIdx(lastFocusIdx, initFocusIdx, listLength) {
+  // 尚未进入过列表
+  if (lastFocusIdx == null || lastFocusIdx < 0) {
+    // 设置了初始聚焦 id
+    if (initFocusIdx > -1 && initFocusIdx < listLength)
+      return initFocusIdx;
+    return 0;
+  } else return lastFocusIdx;
 }
 
 /** 分解焦点配置 */
@@ -341,7 +354,7 @@ function generateFocusDataByTravellingConfig(
     }
   } else if (isObj(obj)) { // 是否为对象
 
-    const { entry, exit, list, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap } = obj;
+    const { entry, exit, list, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive } = obj;
     /** 是否是范围模式 */
     const isRangeMode = range === true;
     /** 不包含子信息的纯列表 */
@@ -366,7 +379,8 @@ function generateFocusDataByTravellingConfig(
       parentList,
     });
     listsFocusInfo.set(pureList, {
-      lastFocusIdx: 0, // 最后一次聚焦的 id
+      initFocusIdx: initActive, // 首次聚焦元素 id
+      lastFocusIdx: -1, // 最后一次聚焦的 id
       outlistExit: outlistExit ? entry : false, // 蒙层出口
       escExit: escapeExit ? entry : false, // esc 出口
       parentList,
