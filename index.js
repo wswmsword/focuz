@@ -26,6 +26,8 @@ function focusky(config) {
   let focusedByExit = false;
   /** 当前聚焦的列表 */
   let currentList = null;
+  /** 通过 outlist 出口失焦 */
+  let exitByOutlist = false;
 
   rootEle.addEventListener("keydown", function(e) {
 
@@ -172,13 +174,12 @@ function focusky(config) {
 
   rootEle.addEventListener("focusin", function(e) {
 
-    const target = e.target;
-    const selector = '#' + target.id;
+    if (focusedByEntry || focusedByExit || exitByOutlist) return;
 
-    if (focusedByEntry || focusedByExit) return;
-
-    // 如果不是通过导航聚焦的列表元素，则需要矫正
+    // 没有意图的聚焦，则进行矫正；诸如触发入口、出口、列表导航的聚焦，都是有意图的。
     if (focusedListItemByNavList === false && focusedListItemByMouse === false) {
+      const target = e.target;
+      const selector = '#' + target.id;
       /** 包含当前元素的列表 */
       const listHadItem = lists.find(li => li.includes(selector));
       const curListInfo = listsFocusInfo.get(listHadItem);
@@ -208,7 +209,9 @@ function focusky(config) {
       if (currentList != null && prevActiveListInfo.outlistExit) {
         // 当前的焦点不在列表之中
         if (!document.querySelector(prevActiveListInfo.wrap).contains(active)) {
+          exitByOutlist = true; // 由于事件循环，本行必须位于 `.focus()` 之上
           document.querySelector(prevActiveListInfo.outlistExit).focus();
+          setTimeout(() => exitByOutlist = false, 0);
           updateCurrentList(prevActiveListInfo.parentList);
           const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
           entryFocusInfo.entered = false;
