@@ -155,6 +155,7 @@ function focusky(config) {
           entryFocusInfo.entered = false;
           updateCurrentList(entryFocusInfo.parentList);
         } else {
+          if (focusedByEntry) return; // 若是已通过 keydown 入口进入，则无需再从这里的 click 入口进入，打断
           focusByEntry(selector, e);
           entryFocusInfo.entered = true;
         }
