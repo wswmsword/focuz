@@ -202,14 +202,12 @@ function focusky(config) {
 
     setTimeout(() => {
       const active = getActiveElement();
-      /** 失焦之后聚焦的元素 */
-      const activeSelector = active.id ? '#' + active.id : null;
       /** 失焦元素是否是列表的元素 */
       const prevActiveListInfo = listsFocusInfo.get(currentList);
       // 失焦元素是列表元素，并且有 outlist 退出类型
       if (currentList != null && prevActiveListInfo.outlistExit) {
         // 当前的焦点不在列表之中
-        if (!document.querySelector(prevActiveListInfo.wrap).contains(document.querySelector(activeSelector))) {
+        if (!document.querySelector(prevActiveListInfo.wrap).contains(active)) {
           document.querySelector(prevActiveListInfo.outlistExit).focus();
           updateCurrentList(prevActiveListInfo.parentList);
           const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
