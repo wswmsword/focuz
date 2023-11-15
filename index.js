@@ -6,7 +6,7 @@ function focusky(config) {
   const {
     entriesMap, exitsMap,
     root,
-    lists,
+    sequenceLists,
     tabPortal, shiftTabPortal,
     entriesFocusInfo, exitsFocusInfo, listsFocusInfo,
     listWrapInfo,
@@ -181,7 +181,7 @@ function focusky(config) {
       const target = e.target;
       const selector = '#' + target.id;
       /** 包含当前元素的列表 */
-      const listHadItem = lists.find(li => li.includes(selector));
+      const listHadItem = sequenceLists.find(li => li.includes(selector));
       const curListInfo = listsFocusInfo.get(listHadItem);
       if (curListInfo) {
         const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, listHadItem.length);
@@ -245,7 +245,7 @@ function focusky(config) {
     // 2. 若无 wrap，则通过列表元素确定列表，这种情况则不再能够判断范围模式的列表
     if (wrappedList == null) {
       /** 包含当前元素的列表 */
-      const listHadItem = lists.find(li => li.includes(selector));
+      const listHadItem = sequenceLists.find(li => li.includes(selector));
       /** 是否是列表的元素 */
       isSequenceList = listHadItem != null;
       if (isSequenceList) { // 序列模式，范围模式不确定，因此不考虑
@@ -274,7 +274,7 @@ function focusky(config) {
   /** 更新最后一次聚焦的列表元素 */
   function updateListLastFocusIdx(selector, list) {
     /** 包含当前元素的列表 */
-    const listHadItem = list || (lists.find(li => li.includes(selector)));
+    const listHadItem = list || (sequenceLists.find(li => li.includes(selector)));
     /** 是否是列表的元素 */
     const isSequenceListItem = listHadItem != null;
     if (isSequenceListItem && listHadItem.includes(selector)) {
@@ -329,44 +329,62 @@ function resolveFocusConfig(config) {
 
   // 根元素
   const { root } = config;
-  // 一些映射，用于聚焦，例如入口映射、出口映射等
-  const maps = generateFocusDataByTravellingConfig(config);
+  // 一些数据，用于聚焦，例如触发入口、出口后如何聚焦
+  const data = generateFocusData(config);
   return {
     root,
-    ...maps,
+    ...data,
   };
 }
 
 /** 遍历配置，生成焦点相关的基础数据 */
-function generateFocusDataByTravellingConfig(
-  obj,
-  entriesMap = new Map(), exitsMap = new Map(),
-  lists = [],
-  tabPortal = new Map(), shiftTabPortal = new Map(),
-  entriesFocusInfo = new Map(), exitsFocusInfo = new Map(), listsFocusInfo = new Map(),
-  listWrapInfo = new Map(),
-  parentList = null) {
+function generateFocusData(obj) {
 
-  // 是否为数组
-  if (Array.isArray(obj)) {
+  const entriesMap = new Map();
+  const exitsMap = new Map();
+  const sequenceLists = [];
+  const tabPortal = new Map();
+  const shiftTabPortal = new Map();
+  const entriesFocusInfo = new Map();
+  const exitsFocusInfo = new Map();
+  const listsFocusInfo = new Map();
+  const listWrapInfo = new Map();
 
-    for (const ele of obj) {
-      generateFocusDataByTravellingConfig(ele, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, listWrapInfo, parentList);
-    }
-  } else if (isObj(obj)) { // 是否为对象
+  travelConfig(obj, null, onConfigObject);
 
-    const { entry, exit, list, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive } = obj;
+  return {
+    /** 用于确定入口的目标 */
+    entriesMap,
+    /** 用于确定出口的目标 */
+    exitsMap,
+    /** 序列模式的列表 */
+    sequenceLists,
+    /** 用于范围模式的列表循环（tab） */
+    tabPortal,
+    /** 用于范围模式的列表循环（shift-tab） */
+    shiftTabPortal,
+    /** 和入口有关的信息 */
+    entriesFocusInfo,
+    /** 和出口有关的信息 */
+    exitsFocusInfo,
+    /** 和列表有关的信息，包括范围和序列模式的列表 */
+    listsFocusInfo,
+    /** 列表包裹物 */
+    listWrapInfo
+  };
+
+  /** 遍历到配置的对象时执行 */
+  function onConfigObject(obj, pureList, parentList) {
+    const { entry, exit, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive } = obj;
     /** 是否是范围模式 */
     const isRangeMode = range === true;
-    /** 不包含子信息的纯列表 */
-    const pureList = list.map(i => isObj(i) ? i.entry : i);
     if (isRangeMode) { // 是否范围模式
       const head = pureList[0];
       const tail = pureList.at(-1);
       tabPortal.set(tail, head);
       shiftTabPortal.set(head, tail);
     } else
-      lists.push(pureList);
+      sequenceLists.push(pureList);
     entriesMap.set(entry, pureList);
     exitsMap.set(exit, entry);
     entriesFocusInfo.set(entry, {
@@ -389,10 +407,24 @@ function generateFocusDataByTravellingConfig(
       range: isRangeMode,
     });
     listWrapInfo.set(listWrap, pureList);
-    generateFocusDataByTravellingConfig(list, entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, listWrapInfo, pureList);
   }
+}
 
-  return { entriesMap, exitsMap, lists, tabPortal, shiftTabPortal, entriesFocusInfo, exitsFocusInfo, listsFocusInfo, listWrapInfo };
+/** 遍历配置 */
+function travelConfig(obj, parentList, onConfigObject) {
+  // 是否为数组
+  if (Array.isArray(obj)) {
+
+    for (const ele of obj) {
+      travelConfig(ele, parentList, onConfigObject);
+    }
+  } else if (isObj(obj)) { // 是否为对象
+    const { list } = obj;
+    /** 不包含子信息的纯列表 */
+    const pureList = list.map(i => isObj(i) ? i.entry : i);
+    onConfigObject(obj, pureList, parentList);
+    travelConfig(list, pureList, onConfigObject);
+  }
 }
 
 export default focusky;
