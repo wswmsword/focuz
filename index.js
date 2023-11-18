@@ -10,6 +10,7 @@ function focusky(config) {
     tabPortal, shiftTabPortal,
     entriesFocusInfo, exitsFocusInfo, listsFocusInfo,
     listWrapInfo,
+    firstEntry
   } = resolveFocusConfig(config);
 
   const rootEle = document.querySelector(root);
@@ -37,6 +38,7 @@ function focusky(config) {
     if (isEscapeEvent(e)) {
       if (currentList != null) {
         const listInfo = listsFocusInfo.get(currentList);
+        if (listInfo.disableAuto) return;
         if (listInfo.escExit) {
           focusedByExit = true;
           document.querySelector(listInfo.escExit).focus();
@@ -54,6 +56,8 @@ function focusky(config) {
       // 按下 Enter
       if (isEnterEvent(e)) {
         const entryFocusInfo = entriesFocusInfo.get(selector);
+        // 禁止事件入口
+        if (entryFocusInfo.disableAuto) return;
         const { delay, toggleEntry, entered } = entryFocusInfo;
         delayToProcess(delay, () => {
           if (toggleEntry && entered) {
@@ -72,6 +76,9 @@ function focusky(config) {
     if (isExit) {
       // 按下 Enter
       if (isEnterEvent(e)) {
+        const exitFocusInfo = exitsFocusInfo.get(selector);
+        // 禁止事件出口
+        if (exitFocusInfo.disableAuto) return;
         const { delay } = exitsFocusInfo.get(selector);
         delayToProcess(delay, () => focusByExit(selector, e));
 
@@ -153,6 +160,8 @@ function focusky(config) {
     if (isEntry) {
       const entryFocusInfo = entriesFocusInfo.get(selector);
       const { delay, toggleEntry, entered } = entryFocusInfo;
+      // 禁止事件入口
+      if (entryFocusInfo.disableAuto) return;
       delayToProcess(delay, () => {
         if (toggleEntry && entered) {
           entryFocusInfo.entered = false;
@@ -165,7 +174,9 @@ function focusky(config) {
       });
     }
     if (isExit) {
-      const { delay } = exitsFocusInfo.get(selector);
+      const { delay, disableAuto } = exitsFocusInfo.get(selector);
+      // 禁止事件出口
+      if (disableAuto) return;
       delayToProcess(delay, () => {
         focusByExit(selector, e);
       });
@@ -205,6 +216,7 @@ function focusky(config) {
       const active = getActiveElement();
       /** 失焦元素是否是列表的元素 */
       const prevActiveListInfo = listsFocusInfo.get(currentList);
+      if (prevActiveListInfo?.disableAuto) return ;
       // 失焦元素是列表元素，并且有 outlist 退出类型
       if (currentList != null && prevActiveListInfo.outlistExit) {
         // 当前的焦点不在列表之中
@@ -270,6 +282,44 @@ function focusky(config) {
       delayToProcess(0, () => focusedListItemByMouse = false);
     }
   });
+
+
+  return {
+    entry() {
+      if (currentList == null) {
+        const activeElement = document.activeElement;
+        const selector = activeElement?.id ? `#${activeElement.id}` : null;
+        if (selector === firstEntry)
+          focusByEntry(firstEntry, { preventDefault() {} });
+        else
+          document.querySelector(firstEntry).focus();
+      } else {
+        const listInfo = listsFocusInfo.get(currentList);
+        const lastChildEntry = listInfo.lastChildEntry;
+        if (lastChildEntry != null) {
+          focusByEntry(lastChildEntry, { preventDefault() {} });
+        }
+      }
+    },
+    exit(e) {
+      if (currentList != null) {
+        e?.stopPropagation?.();
+        const listInfo = listsFocusInfo.get(currentList);
+        const parentList = listInfo.parentList;
+        if (parentList == null) {
+          document.querySelector(firstEntry).focus();
+          updateCurrentList(null);
+        } else {
+          const parentListInfo = listsFocusInfo.get(parentList);
+          const nextIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(parentListInfo?.lastFocusIdx, parentListInfo?.initFocusIdx, parentList.length);
+          focusedByExit = true; // 本行放在 `.focus` 之上是必须的，事件循环相关
+          document.querySelector(parentList[nextIdx]).focus();
+          updateCurrentList(parentList);
+          setTimeout(() => focusedByExit = false, 0);
+        }
+      }
+    },
+  };
 
   /** 更新最后一次聚焦的列表元素 */
   function updateListLastFocusIdx(selector, list) {
@@ -349,6 +399,7 @@ function generateFocusData(obj) {
   const exitsFocusInfo = new Map();
   const listsFocusInfo = new Map();
   const listWrapInfo = new Map();
+  let firstEntry = null;
 
   travelConfig(obj, null, onConfigObject);
 
@@ -370,12 +421,14 @@ function generateFocusData(obj) {
     /** 和列表有关的信息，包括范围和序列模式的列表 */
     listsFocusInfo,
     /** 列表包裹物 */
-    listWrapInfo
+    listWrapInfo,
+    /** 首个入口 */
+    firstEntry,
   };
 
   /** 遍历到配置的对象时执行 */
-  function onConfigObject(obj, pureList, parentList) {
-    const { entry, exit, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive } = obj;
+  function onConfigObject(obj, pureList, parentList, lastChildEntry) {
+    const { entry, exit, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive, disableAutoEntry, disableAutoExit } = obj;
     /** 是否是范围模式 */
     const isRangeMode = range === true;
     if (isRangeMode) { // 是否范围模式
@@ -385,6 +438,7 @@ function generateFocusData(obj) {
       shiftTabPortal.set(head, tail);
     } else
       sequenceLists.push(pureList);
+    if (firstEntry == null) firstEntry = entry;
     entriesMap.set(entry, pureList);
     exitsMap.set(exit, entry);
     entriesFocusInfo.set(entry, {
@@ -392,10 +446,12 @@ function generateFocusData(obj) {
       entered: false, // 是否进入
       toggleEntry, // 该入口是否同时支持退出？
       parentList,
+      disableAuto: disableAutoEntry, // 是否关闭由事件触发的入口
     });
     exitsFocusInfo.set(exit, {
       delay: delayExit,
       parentList,
+      disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
     });
     listsFocusInfo.set(pureList, {
       initFocusIdx: initActive, // 首次聚焦元素 id
@@ -403,8 +459,11 @@ function generateFocusData(obj) {
       outlistExit: outlistExit ? entry : false, // 蒙层出口
       escExit: escapeExit ? entry : false, // esc 出口
       parentList,
+      entry, // 进入该列表的入口
+      lastChildEntry, // 该列表中进入最后一个子列表的入口
       wrap: listWrap,
       range: isRangeMode,
+      disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
     });
     listWrapInfo.set(listWrap, pureList);
   }
@@ -421,8 +480,13 @@ function travelConfig(obj, parentList, onConfigObject) {
   } else if (isObj(obj)) { // 是否为对象
     const { list } = obj;
     /** 不包含子信息的纯列表 */
-    const pureList = list.map(i => isObj(i) ? i.entry : i);
-    onConfigObject(obj, pureList, parentList);
+    const [pureList, lastChildEntry] = list.reduce((acc, cur) => {
+      if (isObj(cur))
+        return [acc[0].concat(cur.entry), cur.entry];
+      else
+        return [acc[0].concat(cur), acc[1]];
+    }, [[]]);
+    onConfigObject(obj, pureList, parentList, lastChildEntry);
     travelConfig(list, pureList, onConfigObject);
   }
 }
