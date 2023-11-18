@@ -1,4 +1,4 @@
-focusky({
+const sky = focusky({
   root: "#app",
   entry: "#en1",
   exit: "#ex1",
@@ -22,7 +22,14 @@ focusky({
       }, "#ex3", {
         entry: "#en5",
         exit: "#ex5",
-        list: ["#i5", "#i6", "#ex5"],
+        list: ["#i4", "#ex5", {
+          entry: "#en6",
+          exit: "#ex6",
+          list: ["#i5", "#i6", "#ex6"],
+          listWrap: "#li6",
+          disableAutoEntry: true,
+          disableAutoExit: true,
+        }],
         listWrap: "#li5",
         escapeExit: true,
         outlistExit: true,
