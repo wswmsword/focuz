@@ -28,6 +28,14 @@ function focusky(config) {
   let currentList = null;
   /** 最后一次活动名称 */
   let lastActivity = null;
+  /** mousedown 更新 currentList 之前的 currentList */
+  let prevActiveListByMousedown = null;
+  /** 内部触发了 outlist 出口 */
+  let triggeredOutlistExitInInner = false;
+  /** 内部未触发任何出口 */
+  let triggeredNoExitInInner = false;
+  /** 区分前一次聚焦列表为 null 的情况，有可能是第一次，也有可能是内部获得的 null */
+  let prevNullBeforeFocusin = false;
 
   rootEle.addEventListener("keydown", function(e) {
 
@@ -108,16 +116,18 @@ function focusky(config) {
     const curListInfo = listsFocusInfo.get(currentList);
     /** 当前是否范围模式列表 */
     const isRangeList = curListInfo && curListInfo.range;
+    /** 是否是序列列表 */
+    const isSequenceList = !isRangeList && currentList;
     /** 是否是列表的元素 */
-    const isSequenceListItem = !isRangeList && currentList && currentList.includes(selector);
+    const isSequenceListItem = isSequenceList && currentList.includes(selector);
     // 当前在列表（列表为序列模式）
-    if (isSequenceListItem) {
+    if (isSequenceList) {
       const itemsLen = currentList.length;
       const lastFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, itemsLen);
       if (isTabForward(e)) {
         lastActivity = "NAV_FORWARD";
         /** 下一个聚焦元素的 id */
-        const nextFocusIdx = (lastFocusIdx + 1) % itemsLen;
+        const nextFocusIdx = (lastFocusIdx + (isSequenceListItem ? 1 : 0)) % itemsLen;
         focusNext(nextFocusIdx);
       }
       else if (isTabBackward(e)) {
@@ -191,6 +201,7 @@ function focusky(config) {
   });
 
   rootEle.addEventListener("focusin", function(e) {
+    prevNullBeforeFocusin = false; // 置空，用于首次进入内部的时候，首次进入不会经过 focusout
     // 没有意图的聚焦，则进行矫正；诸如触发入口、出口、列表导航的聚焦，都是有意图的。
     if (entryFocusActivity.concat(exitFocusActivity).concat(listFocusActivity).includes(lastActivity)) {
         lastActivity = null;
@@ -215,31 +226,39 @@ function focusky(config) {
     if (triggeredToggleByMouse)
       return triggeredToggleByMouse = false;
 
-    // 若是当前不在列表中，则无需触发 outlist 出口
-    if (currentList == null) return;
-
     if (lastActivity !== "AIRBORNE_MOUSE" && // 可能会在非 rootEle 处触发 AIRBORNE_MOUSE，因此需要单独利用 setTimeout 事件循环
       entryFocusActivity.concat(exitFocusActivity).concat(listFocusActivity).includes(lastActivity)) {
       return ; // 即将进入 focusin，因此不清空 lastActivity
     }
 
-    setTimeout(() => {
-      const active = getActiveElement();
+    if (triggeredOutlistExitInInner) { // 内部触发 outlist
+      triggeredOutlistExitInInner = false;
+      exitByListOutlistExit(prevActiveListByMousedown);
+    }
+    else if (triggeredNoExitInInner || // 从一个没有 outlist 出口的列表点击内部任何其它地方
+      prevNullBeforeFocusin)
+      triggeredNoExitInInner = false;
+    else
+      exitByListOutlistExit(currentList); // 野外触发 outlist
+
+    prevActiveListByMousedown = null;
+
+    /** 通过 outlistExit 退出 */
+    function exitByListOutlistExit(list) {
       /** 失焦元素是否是列表的元素 */
-      const prevActiveListInfo = listsFocusInfo.get(currentList);
-      if (prevActiveListInfo?.disableAuto) return ;
+      const listInfo = listsFocusInfo.get(list);
+      if (listInfo == null) return;
+      if (listInfo.disableAuto) return ;
       // 失焦元素是列表元素，并且有 outlist 退出类型
-      if (currentList != null && prevActiveListInfo.outlistExit) {
-        // 当前的焦点不在列表之中
-        if (!document.querySelector(prevActiveListInfo.wrap).contains(active)) {
-          lastActivity = "LAYER_EXIT";
-          document.querySelector(prevActiveListInfo.outlistExit).focus();
-          updateCurrentList(prevActiveListInfo.parentList);
-          const entryFocusInfo = entriesFocusInfo.get(prevActiveListInfo.outlistExit);
-          entryFocusInfo.entered = false;
-        }
+      if (listInfo.outlistExit) {
+
+        lastActivity = "LAYER_EXIT";
+        document.querySelector(listInfo.outlistExit).focus();
+        updateCurrentList(listInfo.parentList);
+        const entryFocusInfo = entriesFocusInfo.get(listInfo.outlistExit);
+        entryFocusInfo.entered = false;
       }
-    }, 0);
+    }
   });
 
   rootEle.addEventListener("mousedown", function(e) {
@@ -276,11 +295,18 @@ function focusky(config) {
       }
     }
 
+    prevActiveListByMousedown = currentList;
     updateCurrentList(wrappedList);
 
+    triggeredOutlistExitInInner = isOutlistExit();
+    triggeredNoExitInInner = (!triggeredOutlistExitInInner && prevActiveListByMousedown != null);
+    prevNullBeforeFocusin = prevActiveListByMousedown == null;
+
     // 若是序列模式，则要更新序列最后被聚焦的元素
-    if (isSequenceList)
-      updateListLastFocusIdx(selector, wrappedList);
+    if (isSequenceList) {
+      if (prevActiveListByMousedown == null || !triggeredOutlistExitInInner)
+        updateListLastFocusIdx(selector, wrappedList);
+    }
 
     /** 是否是开关入口 */
     const isToggle = entriesMap.has(selector) && entriesFocusInfo.get(selector).toggleEntry;
@@ -289,6 +315,15 @@ function focusky(config) {
     /** 具体点击到了列表内的某个元素 */
     function focusedListItem() {
       lastActivity = "AIRBORNE_MOUSE"; // 🪂🦈
+    }
+
+    /** 上一个列表是否是 outlist 类型的出口 */
+    function isOutlistExit() {
+      if (prevActiveListByMousedown != null && prevActiveListByMousedown !== wrappedList) {
+        const prevActiveListInfo = listsFocusInfo.get(prevActiveListByMousedown);
+        return !!prevActiveListInfo.outlistExit;
+      }
+      return false;
     }
   });
 
