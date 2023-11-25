@@ -239,12 +239,12 @@ function focusky(config) {
       prevNullBeforeFocusin)
       triggeredNoExitInInner = false;
     else
-      exitByListOutlistExit(currentList); // 野外触发 outlist
+      exitByListOutlistExit(currentList, true); // 野外触发 outlist
 
     prevActiveListByMousedown = null;
 
     /** 通过 outlistExit 退出 */
-    function exitByListOutlistExit(list) {
+    function exitByListOutlistExit(list, isWild) {
       /** 失焦元素是否是列表的元素 */
       const listInfo = listsFocusInfo.get(list);
       if (listInfo == null) return;
@@ -257,7 +257,7 @@ function focusky(config) {
         updateCurrentList(listInfo.parentList);
         const entryFocusInfo = entriesFocusInfo.get(listInfo.outlistExit);
         entryFocusInfo.entered = false;
-      }
+      } else if (isWild) updateCurrentList(null); // 若是列表禁止 outlist 退出类型，点击野区后，仍需置空 currentList
     }
   });
 
