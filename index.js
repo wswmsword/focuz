@@ -446,7 +446,7 @@ function generateFocusData(obj) {
   const listWrapInfo = new Map();
   let firstEntry = null;
 
-  travelConfig(obj, null, onConfigObject);
+  travelConfig(obj, onConfigObject);
 
   return {
     /** 用于确定入口的目标 */
@@ -515,12 +515,12 @@ function generateFocusData(obj) {
 }
 
 /** 遍历配置 */
-function travelConfig(obj, parentList, onConfigObject) {
+function travelConfig(obj, onConfigObject, parentList) {
   // 是否为数组
   if (Array.isArray(obj)) {
 
     for (const ele of obj) {
-      travelConfig(ele, parentList, onConfigObject);
+      travelConfig(ele, onConfigObject, parentList);
     }
   } else if (isObj(obj)) { // 是否为对象
     const { list } = obj;
@@ -532,7 +532,7 @@ function travelConfig(obj, parentList, onConfigObject) {
         return [acc[0].concat(cur), acc[1]];
     }, [[]]);
     onConfigObject(obj, pureList, parentList, lastChildEntry);
-    travelConfig(list, pureList, onConfigObject);
+    travelConfig(list, onConfigObject, pureList);
   }
 }
 
