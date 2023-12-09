@@ -1,11 +1,11 @@
-import { delayToProcess, getActiveElement, isEnterEvent, isEscapeEvent, isObj, isTabBackward, isTabForward } from "./utils";
+import { delayToProcess, isEnterEvent, isEscapeEvent, isObj, isTabBackward, isTabForward } from "./utils";
 
 /** 入口相关的焦点活动 */
 const entryFocusActivity = ["KEY_ENTRY", "SWITCH_ENTRY", "CLICK_ENTRY", "INVOKE_ENTRY"];
 /** 出口相关的焦点活动 */
 const exitFocusActivity = ["ESC_EXIT", "KEY_EXIT", "CLICK_EXIT", "INVOKE_EXIT", "LAYER_EXIT"];
 /** 列表相关的焦点活动 */
-const listFocusActivity = ["FOCUS_PROTECT", "FOCUS_CORRECT", "NAV_FORWARD", "NAV_BACKWARD", "AIRBORNE_MOUSE"];
+const listFocusActivity = ["FOCUS_PROTECT", "FOCUS_CORRECT", "NAV_FORWARD", "NAV_BACKWARD", "AIRBORNE_MOUSE", "UPDATE_LIST"];
 
 /** 焦点天空 */
 function focusky(config) {
@@ -17,7 +17,8 @@ function focusky(config) {
     tabPortal, shiftTabPortal,
     entriesFocusInfo, exitsFocusInfo, listsFocusInfo,
     listWrapInfo,
-    firstEntry
+    firstEntry,
+    updateHotConfig,
   } = resolveFocusConfig(config);
 
   const rootEle = document.querySelector(root);
@@ -368,6 +369,49 @@ function focusky(config) {
         }
       }
     },
+    /** 更新列表 */
+    update(id, config) {
+      let newCurrentListWrap = null;
+      updateHotConfig(id, config, updateCurrentList);
+      if (newCurrentListWrap) {
+        lastActivity = "UPDATE_LIST";
+        document.querySelector(newCurrentListWrap).focus(); // 聚焦回当前列表的包包，使下次键盘导航能聚焦至上一次的焦点位置
+      }
+      function updateCurrentList(coldListsFocusInfo, hotListsFocusInfo, hotEntriesFocusInfo, hotListWrapInfo) {
+        // 当前列表是否是动态列表
+        if (coldListsFocusInfo.get(currentList) == null) {
+          const listFocusInfo = hotListsFocusInfo.get(currentList);
+          const {
+            wrap: originListWrap, // 当前列表的包包
+            lastFocusIdx: lastFocusIdxCurList,
+            entry,
+          } = listFocusInfo;
+          const { entered: enteredCurList } = hotEntriesFocusInfo.get(entry);
+          return function(v, nextWrap) { // 该函数闭包外层的变量，该函数将在遍历新配置的时候执行  
+            // 更新当前列表
+            if (originListWrap === nextWrap) {
+              newCurrentListWrap = nextWrap;
+              currentList = v;
+              return {
+                lastFocusIdx: lastFocusIdxCurList, // 返回最后一次聚焦的 id，列表更新后继承该值
+                entered: enteredCurList,
+              };
+            }
+            // 更新其它列表
+            const listFocusInfo = hotListsFocusInfo.get(hotListWrapInfo.get(nextWrap));
+            const {
+              lastFocusIdx,
+              entry,
+            } = listFocusInfo;
+            const { entered } = hotEntriesFocusInfo.get(entry);
+            return {
+              lastFocusIdx, // 返回最后一次聚焦的 id，列表更新后继承该值
+              entered,
+            }
+          };
+        } else return () => null;
+      }
+    },
   };
 
   /** 更新最后一次聚焦的列表元素 */
@@ -435,18 +479,34 @@ function resolveFocusConfig(config) {
 /** 遍历配置，生成焦点相关的基础数据 */
 function generateFocusData(obj) {
 
-  const entriesMap = new Map();
-  const exitsMap = new Map();
-  const sequenceLists = [];
-  const tabPortal = new Map();
-  const shiftTabPortal = new Map();
-  const entriesFocusInfo = new Map();
-  const exitsFocusInfo = new Map();
-  const listsFocusInfo = new Map();
-  const listWrapInfo = new Map();
+  // 焦点数据分为静态和动态两种，变量前缀分别为 cold 和 hot，动态数据将用于更新列表
+  const [
+    coldEntriesMap, hotEntriesMap,
+    coldExitsMap, hotExitsMap,
+    coldTabPortal, hotTabPortal,
+    coldShiftTabPortal, hotShiftTabPortal,
+    coldEntriesFocusInfo, hotEntriesFocusInfo,
+    coldExitsFocusInfo, hotExitsFocusInfo,
+    coldListsFocusInfo, hotListsFocusInfo,
+    coldListWrapInfo, hotListWrapInfo
+  ] = new Array(16).fill().map(() => new Map());
+  const coldSequenceLists = [];
+  let hotSequenceLists = [];
   let firstEntry = null;
+  const hotConfigInfo = new Map();
 
-  travelConfig(obj, onConfigObject);
+  travelConfig(obj, onConfigObject());
+
+  // 合成静态与动态数据
+  const entriesMap = new Map([...coldEntriesMap, ...hotEntriesMap]);
+  const exitsMap = new Map([...coldExitsMap, ...hotExitsMap]);
+  const sequenceLists = coldSequenceLists.concat(hotSequenceLists);
+  const tabPortal = new Map([...coldTabPortal, ...hotTabPortal]);
+  const shiftTabPortal = new Map([...coldShiftTabPortal, ...hotShiftTabPortal]);
+  const entriesFocusInfo = new Map([...coldEntriesFocusInfo, ...hotEntriesFocusInfo]);
+  const exitsFocusInfo = new Map([...coldExitsFocusInfo, ...hotExitsFocusInfo]);
+  const listsFocusInfo = new Map([...coldListsFocusInfo, ...hotListsFocusInfo]);
+  const listWrapInfo = new Map([...coldListWrapInfo, ...hotListWrapInfo]);
 
   return {
     /** 用于确定入口的目标 */
@@ -469,61 +529,107 @@ function generateFocusData(obj) {
     listWrapInfo,
     /** 首个入口 */
     firstEntry,
+    /** 更新配置 */
+    updateHotConfig,
   };
 
   /** 遍历到配置的对象时执行 */
-  function onConfigObject(obj, pureList, parentList, lastChildEntry) {
-    const { entry, exit, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive, disableAutoEntry, disableAutoExit } = obj;
-    /** 是否是范围模式 */
-    const isRangeMode = range === true;
-    if (isRangeMode) { // 是否范围模式
-      const head = pureList[0];
-      const tail = pureList.at(-1);
-      tabPortal.set(tail, head);
-      shiftTabPortal.set(head, tail);
-    } else
-      sequenceLists.push(pureList);
-    if (firstEntry == null) firstEntry = entry;
-    entriesMap.set(entry, pureList);
-    exitsMap.set(exit, entry);
-    entriesFocusInfo.set(entry, {
-      delay: delayEntry,
-      entered: false, // 是否进入
-      toggleEntry, // 该入口是否同时支持退出？
-      parentList,
-      disableAuto: disableAutoEntry, // 是否关闭由事件触发的入口
+  function onConfigObject(updateHotCurrentList) { // 该层函数用于输入用于更新列表的函数，与外层形成闭包，携带外层变量
+    return function(obj, pureList, parentList, lastChildEntry, isHotConfig) {
+      const { entry, exit, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive, disableAutoEntry, disableAutoExit, id } = obj;
+      let lastFocusIdxFromHotList = -1;
+      let enteredList = false;
+      if (updateHotCurrentList) {
+        const updateProps = updateHotCurrentList(pureList, listWrap);
+        if (updateProps != null) {
+          lastFocusIdxFromHotList = updateProps.lastFocusIdx;
+          enteredList = updateProps.entered;
+        }
+      }
+      /** 是否是范围模式 */
+      const isRangeMode = range === true;
+      if (isRangeMode) { // 是否范围模式
+        const head = pureList[0];
+        const tail = pureList.at(-1);
+        (isHotConfig ? hotTabPortal : coldTabPortal).set(tail, head);
+        (isHotConfig ? hotShiftTabPortal : coldShiftTabPortal).set(head, tail);
+      } else
+        (isHotConfig ? hotSequenceLists : coldSequenceLists).push(pureList);
+      if (firstEntry == null) firstEntry = entry;
+      (isHotConfig ? hotEntriesMap : coldEntriesMap).set(entry, pureList);
+      (isHotConfig ? hotExitsMap : coldExitsMap).set(exit, entry);
+      (isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo).set(entry, {
+        delay: delayEntry,
+        entered: false || enteredList, // 是否进入
+        toggleEntry, // 该入口是否同时支持退出？
+        parentList,
+        disableAuto: disableAutoEntry, // 是否关闭由事件触发的入口
+      });
+      (isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo).set(exit, {
+        delay: delayExit,
+        parentList,
+        disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
+      });
+      (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
+        initFocusIdx: initActive, // 首次聚焦元素 id
+        lastFocusIdx: Math.max(-1, lastFocusIdxFromHotList || -1), // 最后一次聚焦的 id
+        outlistExit: outlistExit ? entry : false, // 蒙层出口
+        escExit: escapeExit ? entry : false, // esc 出口
+        parentList,
+        entry, // 进入该列表的入口
+        lastChildEntry, // 该列表中进入最后一个子列表的入口
+        wrap: listWrap,
+        range: isRangeMode,
+        disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
+      });
+      (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
+      if (isHotConfig) {
+        hotConfigInfo.set(id, {
+          parentList,
+        });
+      }
+    }
+  }
+
+  /** 更新指定 id 的配置 */
+  function updateHotConfig(id, config, updateCurrentList) {
+    const updateCurrentListByWrap = updateCurrentList(coldListsFocusInfo, hotListsFocusInfo, hotEntriesFocusInfo, hotListWrapInfo);
+    // 动态热数据置空
+    [hotEntriesMap, hotExitsMap, hotTabPortal, hotShiftTabPortal, hotEntriesFocusInfo, hotExitsFocusInfo, hotListsFocusInfo, hotListWrapInfo].forEach(e => e.clear());
+    hotSequenceLists = [];
+    const { parentList } = hotConfigInfo.get(id);
+    travelConfig(config, onConfigObject(updateCurrentListByWrap), parentList, true);
+
+    // [原合成数据, 新合成数据]
+    const newEntriesMap = [entriesMap, new Map([...coldEntriesMap, ...hotEntriesMap])];
+    const newExitsMap = [exitsMap, new Map([...coldExitsMap, ...hotExitsMap])];
+    const newSequenceLists = coldSequenceLists.concat(hotSequenceLists);
+    const newTabPortal = [tabPortal, new Map([...coldTabPortal, ...hotTabPortal])];
+    const newShiftTabPortal = [shiftTabPortal, new Map([...coldShiftTabPortal, ...hotShiftTabPortal])];
+    const newEntriesFocusInfo = [entriesFocusInfo, new Map([...coldEntriesFocusInfo, ...hotEntriesFocusInfo])];
+    const newExitsFocusInfo = [exitsFocusInfo, new Map([...coldExitsFocusInfo, ...hotExitsFocusInfo])];
+    const newListsFocusInfo = [listsFocusInfo, new Map([...coldListsFocusInfo, ...hotListsFocusInfo])];
+    const newListWrapInfo = [listWrapInfo, new Map([...coldListWrapInfo, ...hotListWrapInfo])];
+    // 使用新合成数据替换原合成数据
+    sequenceLists.splice(0, sequenceLists.length);
+    sequenceLists.push(...newSequenceLists);
+    [newEntriesMap, newExitsMap, newTabPortal, newShiftTabPortal, newEntriesFocusInfo, newExitsFocusInfo, newListsFocusInfo, newListWrapInfo].forEach(([originMap, newMap]) => {
+      originMap.clear();
+      newMap.forEach((val, key) => originMap.set(key, val));
     });
-    exitsFocusInfo.set(exit, {
-      delay: delayExit,
-      parentList,
-      disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
-    });
-    listsFocusInfo.set(pureList, {
-      initFocusIdx: initActive, // 首次聚焦元素 id
-      lastFocusIdx: -1, // 最后一次聚焦的 id
-      outlistExit: outlistExit ? entry : false, // 蒙层出口
-      escExit: escapeExit ? entry : false, // esc 出口
-      parentList,
-      entry, // 进入该列表的入口
-      lastChildEntry, // 该列表中进入最后一个子列表的入口
-      wrap: listWrap,
-      range: isRangeMode,
-      disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
-    });
-    listWrapInfo.set(listWrap, pureList);
   }
 }
 
 /** 遍历配置 */
-function travelConfig(obj, onConfigObject, parentList) {
+function travelConfig(obj, onConfigObject, parentList, isHotConfig) {
   // 是否为数组
   if (Array.isArray(obj)) {
 
     for (const ele of obj) {
-      travelConfig(ele, onConfigObject, parentList);
+      travelConfig(ele, onConfigObject, parentList, isHotConfig);
     }
   } else if (isObj(obj)) { // 是否为对象
-    const { list } = obj;
+    const { list, id } = obj;
     /** 不包含子信息的纯列表 */
     const [pureList, lastChildEntry] = list.reduce((acc, cur) => {
       if (isObj(cur))
@@ -531,8 +637,9 @@ function travelConfig(obj, onConfigObject, parentList) {
       else
         return [acc[0].concat(cur), acc[1]];
     }, [[]]);
-    onConfigObject(obj, pureList, parentList, lastChildEntry);
-    travelConfig(list, onConfigObject, pureList);
+    const hotConfig = isHotConfig || (id != null);
+    onConfigObject(obj, pureList, parentList, lastChildEntry, hotConfig);
+    travelConfig(list, onConfigObject, pureList, hotConfig);
   }
 }
 
