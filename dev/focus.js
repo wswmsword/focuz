@@ -14,7 +14,15 @@ const sky = focusky({
       list: [{
         entry: "#en4",
         exit: "#ex4",
-        list: ["#i3", "#ex4"],
+        list: ["#i3", {
+          id: "dynamic",
+          entry: "#en7",
+          exit: "#dli1",
+          list: ["#dli1", "#dli2", "#dli3", '#more'],
+          escapeExit: true,
+          outlistExit: true,
+          listWrap: "#li7",
+        }],
         listWrap: "#li4",
         range: true,
         escapeExit: true,
