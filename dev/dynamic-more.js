@@ -17,10 +17,14 @@ function moreItems() {
   sky.update("dynamic", {
     id: "dynamic",
     entry: "#en7",
-    exit: "#dli1",
-    list: btnIds,
-    escapeExit: true,
-    outlistExit: true,
-    listWrap: "#li7",
+    exit: {
+      node: "#dli1",
+      esc: true,
+      outlist: true,
+    },
+    list: {
+      nodes: btnIds,
+      wrap: "#li7",
+    },
   });
 }

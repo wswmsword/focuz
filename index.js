@@ -1,4 +1,4 @@
-import { delayToProcess, isEnterEvent, isEscapeEvent, isObj, isTabBackward, isTabForward } from "./utils";
+import { delayToProcess, isEnterEvent, isEscapeEvent, isObj, isStr, isTabBackward, isTabForward } from "./utils";
 
 /** 入口相关的焦点活动 */
 const entryFocusActivity = ["KEY_ENTRY", "SWITCH_ENTRY", "CLICK_ENTRY", "INVOKE_ENTRY"];
@@ -536,7 +536,10 @@ function generateFocusData(obj) {
   /** 遍历到配置的对象时执行 */
   function onConfigObject(updateHotCurrentList) { // 该层函数用于输入用于更新列表的函数，与外层形成闭包，携带外层变量
     return function(obj, pureList, parentList, lastChildEntry, isHotConfig) {
-      const { entry, exit, range, delayEntry, delayExit, outlistExit, toggleEntry, escapeExit, listWrap, initActive, disableAutoEntry, disableAutoExit, id } = obj;
+      const { entry, exit, list, id } = obj;
+      const { node: entryNode, delay: entryDelay, toggle, manual: entryManual } = isStr(entry) ? { node: entry } : entry;
+      const { node: exitNode, outlist: outlistExit, esc: escapeExit, delay: exitDelay, manual: exitManual } = isStr(exit) ? { node: exit } : exit;
+      const { wrap: listWrap, initActive, range } = isObj(list) ? list : {};
       let lastFocusIdxFromHotList = -1;
       let enteredList = false;
       if (updateHotCurrentList) {
@@ -555,32 +558,32 @@ function generateFocusData(obj) {
         (isHotConfig ? hotShiftTabPortal : coldShiftTabPortal).set(head, tail);
       } else
         (isHotConfig ? hotSequenceLists : coldSequenceLists).push(pureList);
-      if (firstEntry == null) firstEntry = entry;
-      (isHotConfig ? hotEntriesMap : coldEntriesMap).set(entry, pureList);
-      (isHotConfig ? hotExitsMap : coldExitsMap).set(exit, entry);
-      (isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo).set(entry, {
-        delay: delayEntry,
+      if (firstEntry == null) firstEntry = entryNode;
+      (isHotConfig ? hotEntriesMap : coldEntriesMap).set(entryNode, pureList);
+      (isHotConfig ? hotExitsMap : coldExitsMap).set(exitNode, entryNode);
+      (isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo).set(entryNode, {
+        delay: entryDelay,
         entered: false || enteredList, // 是否进入
-        toggleEntry, // 该入口是否同时支持退出？
+        toggleEntry: toggle, // 该入口是否同时支持退出？
         parentList,
-        disableAuto: disableAutoEntry, // 是否关闭由事件触发的入口
+        disableAuto: entryManual, // 是否关闭由事件触发的入口
       });
-      (isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo).set(exit, {
-        delay: delayExit,
+      (isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo).set(exitNode, {
+        delay: exitDelay,
         parentList,
-        disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
+        disableAuto: exitManual, // 是否关闭由事件触发的出口
       });
       (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
         initFocusIdx: initActive, // 首次聚焦元素 id
         lastFocusIdx: Math.max(-1, lastFocusIdxFromHotList || -1), // 最后一次聚焦的 id
-        outlistExit: outlistExit ? entry : false, // 蒙层出口
-        escExit: escapeExit ? entry : false, // esc 出口
+        outlistExit: outlistExit ? entryNode : false, // 蒙层出口
+        escExit: escapeExit ? entryNode : false, // esc 出口
         parentList,
-        entry, // 进入该列表的入口
+        entry: entryNode, // 进入该列表的入口
         lastChildEntry, // 该列表中进入最后一个子列表的入口
         wrap: listWrap,
         range: isRangeMode,
-        disableAuto: disableAutoExit, // 是否关闭由事件触发的出口
+        disableAuto: exitManual, // 是否关闭由事件触发的出口
       });
       (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
       if (isHotConfig) {
@@ -630,16 +633,19 @@ function travelConfig(obj, onConfigObject, parentList, isHotConfig) {
     }
   } else if (isObj(obj)) { // 是否为对象
     const { list, id } = obj;
+    const listNodes = isObj(list) ? list.nodes : list;
     /** 不包含子信息的纯列表 */
-    const [pureList, lastChildEntry] = list.reduce((acc, cur) => {
-      if (isObj(cur))
-        return [acc[0].concat(cur.entry), cur.entry];
+    const [pureList, lastChildEntry] = listNodes.reduce((acc, cur) => {
+      if (isObj(cur)) {
+        const curEntry = isStr(cur.entry) ? cur.entry : cur.entry.node;
+        return [acc[0].concat(curEntry), curEntry];
+      }
       else
         return [acc[0].concat(cur), acc[1]];
     }, [[]]);
     const hotConfig = isHotConfig || (id != null);
     onConfigObject(obj, pureList, parentList, lastChildEntry, hotConfig);
-    travelConfig(list, onConfigObject, pureList, hotConfig);
+    travelConfig(listNodes, onConfigObject, pureList, hotConfig);
   }
 }
 

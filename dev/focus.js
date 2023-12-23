@@ -1,58 +1,92 @@
 const sky = focusky({
   root: "#app",
-  entry: "#en1",
-  exit: "#ex1",
-  outlistExit: true,
-  escapeExit: true,
-  toggleEntry: true,
-  list: ["#i1", "#ex1", {
-    entry: "#en2",
-    exit: "#ex2",
-    list: ["#i2", {
-      entry: "#en3",
-      exit: "#ex3",
-      list: [{
-        entry: "#en4",
-        exit: "#ex4",
-        list: ["#i3", {
-          id: "dynamic",
-          entry: "#en7",
-          exit: "#dli1",
-          list: ["#dli1", "#dli2", "#dli3", '#more'],
-          escapeExit: true,
-          outlistExit: true,
-          listWrap: "#li7",
+  entry: {
+    node: "#en1",
+    toggle: true,
+  },
+  exit: {
+    node: "#ex1",
+    outlist: true,
+    esc: true,
+  },
+  list: {
+    nodes: ["#i1", "#ex1", {
+      entry: {
+        node: "#en2",
+        delay: 386,
+      },
+      exit: {
+        node: "#ex2",
+        outlist: true,
+        delay: 386,
+        esc: true,
+      },
+      list: {
+        nodes: ["#i2", {
+          entry: "#en3",
+          exit: {
+            node: "#ex3",
+            esc: true,
+          },
+          list: {
+            nodes: [{
+              entry: "#en4",
+              exit: {
+                node: "#ex4",
+                esc: true,
+                outlist: true,
+              },
+              list: {
+                nodes: ["#i3", {
+                  id: "dynamic",
+                  entry: "#en7",
+                  exit: {
+                    node: "#dli1",
+                    esc: true,
+                    outlist: true,
+                  },
+                  list: {
+                    nodes: ["#dli1", "#dli2", "#dli3", '#more'],
+                    wrap: "#li7",
+                  },
+                }],
+                wrap: "#li4",
+                range: true,
+              },
+            }, "#ex3", {
+              entry: "#en5",
+              exit: {
+                node: "#ex5",
+                esc: true,
+                outlist: true,
+              },
+              list: {
+                nodes: ["#i4", "#ex5", {
+                  entry: {
+                    node: "#en6",
+                    manual: true,
+                  },
+                  exit: {
+                    node: "#ex6",
+                    manual: true,
+                  },
+                  list: {
+                    nodes: ["#i5", "#i6", "#ex6"],
+                    wrap: "#li6",
+                  },
+                }],
+                wrap: "#li5",
+              },
+            }], 
+            wrap: "#li3",
+            initActive: 2,
+          },
         }],
-        listWrap: "#li4",
+        wrap: "#li2",
         range: true,
-        escapeExit: true,
-        outlistExit: true,
-      }, "#ex3", {
-        entry: "#en5",
-        exit: "#ex5",
-        list: ["#i4", "#ex5", {
-          entry: "#en6",
-          exit: "#ex6",
-          list: ["#i5", "#i6", "#ex6"],
-          listWrap: "#li6",
-          disableAutoEntry: true,
-          disableAutoExit: true,
-        }],
-        listWrap: "#li5",
-        escapeExit: true,
-        outlistExit: true,
-        initActive: 2,
-      }],
-      listWrap: "#li3",
-      escapeExit: true,
+      },
     }],
-    listWrap: "#li2",
-    range: true,
-    escapeExit: true,
-    delayEntry: 386,
-    delayExit: 386,
-    outlistExit: true,
-  }],
-  listWrap: "#li1",
-  initActive: 1,
+    wrap: "#li1",
+    initActive: 1,
+  },
 });

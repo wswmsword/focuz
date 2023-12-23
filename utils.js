@@ -4,6 +4,9 @@ export const objToStr = obj => Object.prototype.toString.call(obj);
 /** 参数是否是对象 */
 export const isObj = obj => objToStr(obj) === "[object Object]";
 
+/** 参数是否为字符串 */
+export const isStr = str => typeof str === "string";
+
 /** 是否按下了 enter */
 export const isEnterEvent = function(e) {
   return e.key === "Enter" || e.keyCode === 13;
