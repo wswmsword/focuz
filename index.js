@@ -49,8 +49,8 @@ function focusky(config) {
         if (listInfo.disableAuto) return;
         if (listInfo.escExit) {
           lastActivity = "ESC_EXIT";
-          document.querySelector(listInfo.escExit).focus();
-          updateCurrentList(listInfo.parentList); // 即将落入的列表是当前列表的父列表
+          const { parentList, entry } = listInfo;
+          exitToTarget(parentList, entry);
           return;
         }
       }
@@ -91,7 +91,7 @@ function focusky(config) {
         const { delay } = exitsFocusInfo.get(selector);
         delayToProcess(delay, () => {
           lastActivity = "KEY_EXIT";
-          focusByExit(selector, e)
+          focusByExit(selector, e);
         });
 
         return;
@@ -254,10 +254,8 @@ function focusky(config) {
       if (listInfo.outlistExit) {
 
         lastActivity = "LAYER_EXIT";
-        document.querySelector(listInfo.outlistExit).focus();
-        updateCurrentList(listInfo.parentList);
-        const entryFocusInfo = entriesFocusInfo.get(listInfo.outlistExit);
-        entryFocusInfo.entered = false;
+        const { parentList, entry } = listInfo;
+        exitToTarget(parentList, entry);
       } else if (isWild) updateCurrentList(null); // 若是列表禁止 outlist 退出类型，点击野区后，仍需置空 currentList
     }
   });
@@ -439,16 +437,29 @@ function focusky(config) {
   /** 通过出口返回至入口 */
   function focusByExit(selector, e) {
     e.preventDefault();
-    const exitTarget = exitsMap.get(selector);
-    document.querySelector(exitTarget).focus();
-    const entryFocusInfo = entriesFocusInfo.get(exitTarget);
-    entryFocusInfo.entered = false;
-    updateCurrentList(entryFocusInfo.parentList);
+    const { parentList } = exitsFocusInfo.get(selector);
+    const entry = exitsMap.get(selector);
+    exitToTarget(parentList, entry);
   }
 
   /** 更新当前聚焦的列表 */
   function updateCurrentList(list) {
     currentList = list;
+  }
+
+  /** 退出，聚焦，更新状态 */
+  function exitToTarget(parentList, entry) {
+    const isRoot = parentList == null;
+    const exitTarget = isRoot ? entry : (() => {
+      const parentListInfo = listsFocusInfo.get(parentList);
+      const { lastFocusIdx } = parentListInfo;
+      const exitTarget = lastFocusIdx < 0 ? entry : parentList[lastFocusIdx];
+      return exitTarget;
+    })();
+    document.querySelector(exitTarget).focus();
+    updateCurrentList(parentList); // 即将落入的列表是当前列表的父列表
+    const entryFocusInfo = entriesFocusInfo.get(entry);
+    entryFocusInfo.entered = false;
   }
 }
 
@@ -576,8 +587,8 @@ function generateFocusData(obj) {
       (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
         initFocusIdx: initActive, // 首次聚焦元素 id
         lastFocusIdx: Math.max(-1, lastFocusIdxFromHotList || -1), // 最后一次聚焦的 id
-        outlistExit: outlistExit ? entryNode : false, // 蒙层出口
-        escExit: escapeExit ? entryNode : false, // esc 出口
+        outlistExit, // 蒙层出口
+        escExit: escapeExit, // 是否存在 esc 出口
         parentList,
         entry: entryNode, // 进入该列表的入口
         lastChildEntry, // 该列表中进入最后一个子列表的入口
