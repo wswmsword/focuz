@@ -10,7 +10,7 @@ const sky = focusky({
     esc: true,
   },
   list: {
-    nodes: ["#i1", "#ex1", {
+    nodes: ["#i1_1", "#ex1", {
       entry: {
         node: "#en2",
         delay: 386,
@@ -22,7 +22,7 @@ const sky = focusky({
         esc: true,
       },
       list: {
-        nodes: ["#i2", {
+        nodes: ["#i2_1", {
           entry: "#en3",
           exit: {
             node: "#ex3",
@@ -37,7 +37,7 @@ const sky = focusky({
                 outlist: true,
               },
               list: {
-                nodes: ["#i3", {
+                nodes: ["#i4_1", {
                   id: "dynamic",
                   entry: "#en7",
                   exit: {
@@ -49,7 +49,7 @@ const sky = focusky({
                     nodes: ["#dli1", "#dli2", "#dli3", '#more'],
                     wrap: "#li7",
                   },
-                }],
+                }, "#i4_4"],
                 wrap: "#li4",
                 range: true,
               },
@@ -61,7 +61,7 @@ const sky = focusky({
                 outlist: true,
               },
               list: {
-                nodes: ["#i4", "#ex5", {
+                nodes: ["#i5_1", "#ex5", {
                   entry: {
                     node: "#en6",
                     manual: true,
@@ -71,7 +71,7 @@ const sky = focusky({
                     manual: true,
                   },
                   list: {
-                    nodes: ["#i5", "#i6", "#ex6"],
+                    nodes: ["#i6_1", "#i6_2", "#ex6"],
                     wrap: "#li6",
                   },
                 }],
