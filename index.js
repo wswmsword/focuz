@@ -48,9 +48,11 @@ function focusky(config) {
         const listInfo = listsFocusInfo.get(currentList);
         if (listInfo.disableAuto) return;
         if (listInfo.escExit) {
-          lastActivity = "ESC_EXIT";
-          const { parentList, entry } = listInfo;
-          exitToTarget(parentList, entry);
+          const { parentList, entry, exitDelay } = listInfo;
+          delayToProcess(exitDelay, () => {
+            lastActivity = "ESC_EXIT";
+            exitToTarget(parentList, entry);
+          });
           return;
         }
       }
@@ -253,9 +255,11 @@ function focusky(config) {
       // 失焦元素是列表元素，并且有 outlist 退出类型
       if (listInfo.outlistExit) {
 
-        lastActivity = "LAYER_EXIT";
-        const { parentList, entry } = listInfo;
-        exitToTarget(parentList, entry);
+        const { parentList, entry, exitDelay } = listInfo;
+        delayToProcess(exitDelay, () => {
+          lastActivity = "LAYER_EXIT";
+          exitToTarget(parentList, entry);
+        });
       } else if (isWild) updateCurrentList(null); // 若是列表禁止 outlist 退出类型，点击野区后，仍需置空 currentList
     }
   });
@@ -595,6 +599,7 @@ function generateFocusData(obj) {
         wrap: listWrap,
         range: isRangeMode,
         disableAuto: exitManual, // 是否关闭由事件触发的出口
+        exitDelay,
       });
       (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
       if (isHotConfig) {
