@@ -11,7 +11,6 @@ const listFocusActivity = ["FOCUS_PROTECT", "FOCUS_CORRECT", "NAV_FORWARD", "NAV
 function focusky(config) {
 
   const {
-    entriesMap, exitsMap,
     root,
     sequenceLists,
     tabPortal, shiftTabPortal,
@@ -58,13 +57,12 @@ function focusky(config) {
       }
     }
 
-    const isEntry = entriesMap.has(selector);
-    const isExit = !isEntry && exitsMap.has(selector);
+    const entryFocusInfo = entriesFocusInfo.get(selector);
+    const isEntry = entryFocusInfo != null;
     // 当前在入口
     if (isEntry) {
       // 按下 Enter
       if (isEnterEvent(e)) {
-        const entryFocusInfo = entriesFocusInfo.get(selector);
         // 禁止事件入口
         if (entryFocusInfo.disableAuto) return;
         const { delay, toggleEntry, entered } = entryFocusInfo;
@@ -83,15 +81,19 @@ function focusky(config) {
         return;
       }
     }
+
+    let exitFocusInfo = null;
+    const isExit = !isEntry && (() => {
+      exitFocusInfo = exitsFocusInfo.get(selector);
+      return exitFocusInfo != null;
+    })();
     // 当前在出口
     if (isExit) {
       // 按下 Enter
       if (isEnterEvent(e)) {
-        const exitFocusInfo = exitsFocusInfo.get(selector);
         // 禁止事件出口
         if (exitFocusInfo.disableAuto) return;
-        const { delay } = exitsFocusInfo.get(selector);
-        delayToProcess(delay, () => {
+        delayToProcess(exitFocusInfo.delay, () => {
           lastActivity = "KEY_EXIT";
           focusByExit(selector, e);
         });
@@ -172,10 +174,9 @@ function focusky(config) {
 
     const target = e.target;
     const selector = '#' + target.id;
-    const isEntry = entriesMap.has(selector);
-    const isExit = !isEntry && exitsMap.has(selector);
+    const entryFocusInfo = entriesFocusInfo.get(selector);
+    const isEntry = entryFocusInfo != null;
     if (isEntry) {
-      const entryFocusInfo = entriesFocusInfo.get(selector);
       const { delay, toggleEntry, entered } = entryFocusInfo;
       // 禁止事件入口
       if (entryFocusInfo.disableAuto) return;
@@ -192,8 +193,13 @@ function focusky(config) {
         }
       });
     }
+    let exitFocusInfo = null;
+    const isExit = !isEntry && (() => {
+      exitFocusInfo = exitsFocusInfo.get(selector);
+      return exitFocusInfo != null;
+    })();
     if (isExit) {
-      const { delay, disableAuto } = exitsFocusInfo.get(selector);
+      const { delay, disableAuto } = exitFocusInfo;
       // 禁止事件出口
       if (disableAuto) return;
       delayToProcess(delay, () => {
@@ -312,7 +318,7 @@ function focusky(config) {
     }
 
     /** 是否是开关入口 */
-    const isToggle = entriesMap.has(selector) && entriesFocusInfo.get(selector).toggleEntry;
+    const isToggle = (entriesFocusInfo.get(selector) || {}).toggleEntry;
     triggeredToggleByMouse = isToggle;
 
     /** 具体点击到了列表内的某个元素 */
@@ -431,7 +437,7 @@ function focusky(config) {
   /** 通过入口进入列表 */
   function focusByEntry(selector, e) {
     e.preventDefault();
-    const entryList = entriesMap.get(selector);
+    const { target: entryList } = entriesFocusInfo.get(selector);
     updateCurrentList(entryList);
     const curListInfo = listsFocusInfo.get(entryList);
     const nextIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo?.lastFocusIdx, curListInfo?.initFocusIdx, entryList.length);
@@ -441,9 +447,8 @@ function focusky(config) {
   /** 通过出口返回至入口 */
   function focusByExit(selector, e) {
     e.preventDefault();
-    const { parentList } = exitsFocusInfo.get(selector);
-    const entry = exitsMap.get(selector);
-    exitToTarget(parentList, entry);
+    const { parentList, target } = exitsFocusInfo.get(selector);
+    exitToTarget(parentList, target);
   }
 
   /** 更新当前聚焦的列表 */
@@ -496,15 +501,13 @@ function generateFocusData(obj) {
 
   // 焦点数据分为静态和动态两种，变量前缀分别为 cold 和 hot，动态数据将用于更新列表
   const [
-    coldEntriesMap, hotEntriesMap,
-    coldExitsMap, hotExitsMap,
     coldTabPortal, hotTabPortal,
     coldShiftTabPortal, hotShiftTabPortal,
     coldEntriesFocusInfo, hotEntriesFocusInfo,
     coldExitsFocusInfo, hotExitsFocusInfo,
     coldListsFocusInfo, hotListsFocusInfo,
     coldListWrapInfo, hotListWrapInfo
-  ] = new Array(16).fill().map(() => new Map());
+  ] = new Array(12).fill().map(() => new Map());
   const coldSequenceLists = [];
   let hotSequenceLists = [];
   let firstEntry = null;
@@ -513,8 +516,6 @@ function generateFocusData(obj) {
   travelConfig(obj, onConfigObject());
 
   // 合成静态与动态数据
-  const entriesMap = new Map([...coldEntriesMap, ...hotEntriesMap]);
-  const exitsMap = new Map([...coldExitsMap, ...hotExitsMap]);
   const sequenceLists = coldSequenceLists.concat(hotSequenceLists);
   const tabPortal = new Map([...coldTabPortal, ...hotTabPortal]);
   const shiftTabPortal = new Map([...coldShiftTabPortal, ...hotShiftTabPortal]);
@@ -524,10 +525,6 @@ function generateFocusData(obj) {
   const listWrapInfo = new Map([...coldListWrapInfo, ...hotListWrapInfo]);
 
   return {
-    /** 用于确定入口的目标 */
-    entriesMap,
-    /** 用于确定出口的目标 */
-    exitsMap,
     /** 序列模式的列表 */
     sequenceLists,
     /** 用于范围模式的列表循环（tab） */
@@ -574,19 +571,19 @@ function generateFocusData(obj) {
       } else
         (isHotConfig ? hotSequenceLists : coldSequenceLists).push(pureList);
       if (firstEntry == null) firstEntry = entryNode;
-      (isHotConfig ? hotEntriesMap : coldEntriesMap).set(entryNode, pureList);
-      (isHotConfig ? hotExitsMap : coldExitsMap).set(exitNode, entryNode);
       (isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo).set(entryNode, {
         delay: entryDelay,
         entered: false || enteredList, // 是否进入
         toggleEntry: toggle, // 该入口是否同时支持退出？
         parentList,
         disableAuto: entryManual, // 是否关闭由事件触发的入口
+        target: pureList, // 入口目标
       });
       (isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo).set(exitNode, {
         delay: exitDelay,
         parentList,
         disableAuto: exitManual, // 是否关闭由事件触发的出口
+        target: entryNode, // 出口目标
       });
       (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
         initFocusIdx: initActive, // 首次聚焦元素 id
@@ -614,14 +611,12 @@ function generateFocusData(obj) {
   function updateHotConfig(id, config, updateCurrentList) {
     const updateCurrentListByWrap = updateCurrentList(coldListsFocusInfo, hotListsFocusInfo, hotEntriesFocusInfo, hotListWrapInfo);
     // 动态热数据置空
-    [hotEntriesMap, hotExitsMap, hotTabPortal, hotShiftTabPortal, hotEntriesFocusInfo, hotExitsFocusInfo, hotListsFocusInfo, hotListWrapInfo].forEach(e => e.clear());
+    [hotTabPortal, hotShiftTabPortal, hotEntriesFocusInfo, hotExitsFocusInfo, hotListsFocusInfo, hotListWrapInfo].forEach(e => e.clear());
     hotSequenceLists = [];
     const { parentList } = hotConfigInfo.get(id);
     travelConfig(config, onConfigObject(updateCurrentListByWrap), parentList, true);
 
     // [原合成数据, 新合成数据]
-    const newEntriesMap = [entriesMap, new Map([...coldEntriesMap, ...hotEntriesMap])];
-    const newExitsMap = [exitsMap, new Map([...coldExitsMap, ...hotExitsMap])];
     const newSequenceLists = coldSequenceLists.concat(hotSequenceLists);
     const newTabPortal = [tabPortal, new Map([...coldTabPortal, ...hotTabPortal])];
     const newShiftTabPortal = [shiftTabPortal, new Map([...coldShiftTabPortal, ...hotShiftTabPortal])];
@@ -632,7 +627,7 @@ function generateFocusData(obj) {
     // 使用新合成数据替换原合成数据
     sequenceLists.splice(0, sequenceLists.length);
     sequenceLists.push(...newSequenceLists);
-    [newEntriesMap, newExitsMap, newTabPortal, newShiftTabPortal, newEntriesFocusInfo, newExitsFocusInfo, newListsFocusInfo, newListWrapInfo].forEach(([originMap, newMap]) => {
+    [newTabPortal, newShiftTabPortal, newEntriesFocusInfo, newExitsFocusInfo, newListsFocusInfo, newListWrapInfo].forEach(([originMap, newMap]) => {
       originMap.clear();
       newMap.forEach((val, key) => originMap.set(key, val));
     });
