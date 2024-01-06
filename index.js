@@ -1,4 +1,4 @@
-import { delayToProcess, isEnterEvent, isEscapeEvent, isObj, isStr, isTabBackward, isTabForward } from "./utils";
+import { addCondition, delayToProcess, isEnterEvent, isEscapeEvent, isObj, isStr, isTabBackward, isTabForward } from "./utils";
 
 /** 入口相关的焦点活动 */
 const entryFocusActivity = ["KEY_ENTRY", "SWITCH_ENTRY", "CLICK_ENTRY", "INVOKE_ENTRY"];
@@ -36,6 +36,16 @@ function focusky(config) {
   let triggeredNoExitInInner = false;
   /** 区分前一次聚焦列表为 null 的情况，有可能是第一次，也有可能是内部获得的 null */
   let prevNullBeforeFocusin = false;
+  /** 是否正在延迟执行 */
+  let delaying = false;
+
+  /** 延迟执行后执行钩子 */
+  const delayToProcessWithAfter = delayToProcess(() => delaying = false);
+  /** 根据条件延迟执行 */
+  const delayToProcessWithCondition = addCondition(() => {
+    if (!delaying) return delaying = true;
+    return false;
+  }, delayToProcessWithAfter);
 
   rootEle.addEventListener("keydown", function(e) {
 
@@ -48,7 +58,7 @@ function focusky(config) {
         if (listInfo.disableAuto) return;
         if (listInfo.escExit) {
           const { parentList, entry, exitDelay } = listInfo;
-          delayToProcess(exitDelay, () => {
+          delayToProcessWithCondition(exitDelay, () => {
             lastActivity = "ESC_EXIT";
             exitToTarget(parentList, entry);
           });
@@ -66,7 +76,7 @@ function focusky(config) {
         // 禁止事件入口
         if (entryFocusInfo.disableAuto) return;
         const { delay, toggleEntry, entered } = entryFocusInfo;
-        delayToProcess(delay, () => {
+        delayToProcessWithCondition(delay, () => {
           if (toggleEntry && entered) {
             lastActivity = "SWITCH_ENTRY";
             entryFocusInfo.entered = false;
@@ -93,7 +103,7 @@ function focusky(config) {
       if (isEnterEvent(e)) {
         // 禁止事件出口
         if (exitFocusInfo.disableAuto) return;
-        delayToProcess(exitFocusInfo.delay, () => {
+        delayToProcessWithCondition(exitFocusInfo.delay, () => {
           lastActivity = "KEY_EXIT";
           focusByExit(selector, e);
         });
@@ -180,7 +190,7 @@ function focusky(config) {
       const { delay, toggleEntry, entered } = entryFocusInfo;
       // 禁止事件入口
       if (entryFocusInfo.disableAuto) return;
-      delayToProcess(delay, () => {
+      delayToProcessWithCondition(delay, () => {
         if (toggleEntry && entered) {
           lastActivity = "SWITCH_ENTRY";
           entryFocusInfo.entered = false;
@@ -202,7 +212,7 @@ function focusky(config) {
       const { delay, disableAuto } = exitFocusInfo;
       // 禁止事件出口
       if (disableAuto) return;
-      delayToProcess(delay, () => {
+      delayToProcessWithCondition(delay, () => {
         lastActivity = "CLICK_EXIT";
         focusByExit(selector, e);
       });
@@ -262,7 +272,7 @@ function focusky(config) {
       if (listInfo.outlistExit) {
 
         const { parentList, entry, exitDelay } = listInfo;
-        delayToProcess(exitDelay, () => {
+        delayToProcessWithCondition(exitDelay, () => {
           lastActivity = "LAYER_EXIT";
           exitToTarget(parentList, entry);
         });

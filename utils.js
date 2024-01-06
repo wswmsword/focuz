@@ -33,10 +33,24 @@ export const isTabBackward = function(e) {
 };
 
 /** 延迟执行 */
-export const delayToProcess = function(delay, processor) {
-  if (delay == null) processor();
-  else setTimeout(processor, delay);
+export const delayToProcess = function(after) {
+  return function (delay, processor) {
+    if (delay == null) f();
+    else setTimeout(f, delay);
+
+    function f() {
+      processor();
+      after();
+    }
+  }
 };
 
 /** document.activeElement 的快捷方式 */
 export const getActiveElement = () => document.activeElement;
+
+/** 为执行函数添加条件 */
+export function addCondition(condition, processor) {
+  return function(...props) {
+    if (condition()) processor(...props);
+  };
+}
