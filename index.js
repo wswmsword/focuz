@@ -8,7 +8,7 @@ const exitFocusActivity = ["ESC_EXIT", "KEY_EXIT", "CLICK_EXIT", "INVOKE_EXIT", 
 const listFocusActivity = ["FOCUS_PROTECT", "FOCUS_CORRECT", "NAV_FORWARD", "NAV_BACKWARD", "AIRBORNE_MOUSE", "UPDATE_LIST"];
 
 /** 焦点天空 */
-function focusky(config) {
+function focuz(config) {
 
   const {
     root,
@@ -670,4 +670,4 @@ function travelConfig(obj, onConfigObject, parentList, isHotConfig) {
   }
 }
 
-export default focusky;
+export default focuz;

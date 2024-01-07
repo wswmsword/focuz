@@ -14,7 +14,7 @@ function moreItems() {
   newBtn.innerHTML = newBtn.id;
   listWrap.insertBefore(newBtn, moreBtn);
   btnIds.splice(-1, 0, `#${newBtn.id}`);
-  sky.update("dynamic", {
+  z.update("dynamic", {
     id: "dynamic",
     entry: "#en7",
     exit: {

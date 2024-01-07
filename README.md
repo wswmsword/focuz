@@ -1,6 +1,6 @@
-# focus-sky
+# focuz
 
-焦点天空的特性：
+focuz 的特性：
 
 - 支持嵌套结构聚焦；
 - 延迟聚焦与失焦，指定初始焦点；
@@ -43,7 +43,7 @@ TODO:
 多组情况，类似如下：
 
 ```javascript
-focusky(root, [{
+focuz(root, [{
   entry,
   exit,
   list

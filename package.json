@@ -1,22 +1,22 @@
 {
-  "name": "focus-sky",
+  "name": "focuz",
   "version": "1.0.0",
   "type": "module",
   "description": "Focus management.",
-  "main": "output/focus-sky.cjs",
+  "main": "output/focuz.cjs",
   "exports": {
-    "import": "./output/focus-sky.esm.js",
-    "require": "./output/focus-sky.cjs"
+    "import": "./output/focuz.esm.js",
+    "require": "./output/focuz.cjs"
   },
   "sideEffects": false,
   "scripts": {
     "dev": "npm run compile:dev -- --watch",
     "compile:dev": "BUILD_ENV=dev BABEL_ENV=es5 rollup -c",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "cypress:open": "cypress open"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wswmsword/focus-sky.git"
+    "url": "git+https://github.com/wswmsword/focuz.git"
   },
   "keywords": [
     "focus",
@@ -26,9 +26,9 @@
   "author": "wsWmsword",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/wswmsword/focus-sky/issues"
+    "url": "https://github.com/wswmsword/focuz/issues"
   },
-  "homepage": "https://github.com/wswmsword/focus-sky#readme",
+  "homepage": "https://github.com/wswmsword/focuz#readme",
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.3",
     "rollup": "^3.29.3",

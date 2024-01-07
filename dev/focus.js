@@ -1,4 +1,4 @@
-const sky = focusky({
+const z = focuz({
   root: "#app",
   entry: {
     node: "#en1",

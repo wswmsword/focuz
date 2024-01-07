@@ -5,7 +5,7 @@ import serve from "rollup-plugin-serve";
 const dev = () => ({
   input: "index.js",
   output: {
-    name: "focusky",
+    name: "focuz",
     file: "dev/index.js",
     format: "iife",
     sourcemap: true,
