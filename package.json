@@ -12,7 +12,8 @@
   "scripts": {
     "dev": "npm run compile:dev -- --watch",
     "compile:dev": "BUILD_ENV=dev BABEL_ENV=es5 rollup -c",
-    "cypress:open": "cypress open"
+    "t:stairs": "npx playwright test stairs.spec.js",
+    "t:s:ui": "npx playwright test stairs.spec.js --ui"
   },
   "repository": {
     "type": "git",
@@ -30,7 +31,9 @@
   },
   "homepage": "https://github.com/wswmsword/focuz#readme",
   "devDependencies": {
+    "@playwright/test": "^1.40.1",
     "@rollup/plugin-terser": "^0.4.3",
+    "@types/node": "^20.11.0",
     "rollup": "^3.29.3",
     "rollup-plugin-livereload": "^2.0.5",
     "rollup-plugin-serve": "^2.0.2"

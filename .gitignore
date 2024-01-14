@@ -2,3 +2,8 @@ node_modules
 .DS_Store
 dev/index.js
 dev/index.js.map
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.idea
