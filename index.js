@@ -223,9 +223,9 @@ function focuz(config) {
     prevNullBeforeFocusin = false; // 置空，用于首次进入内部的时候，首次进入不会经过 focusout
     // 没有意图的聚焦，则进行矫正；诸如触发入口、出口、列表导航的聚焦，都是有意图的。
     if (entryFocusActivity.concat(exitFocusActivity).concat(listFocusActivity).includes(lastActivity)) {
-        lastActivity = null;
-        return ;
-      }
+      lastActivity = null;
+      return ;
+    }
     const target = e.target;
     const selector = '#' + target.id;
     /** 包含当前元素的列表 */
@@ -284,9 +284,10 @@ function focuz(config) {
 
   rootEle.addEventListener("mousedown", function(e) {
 
-    const target = e.target;
-    const selector = '#' + target.id;
-
+    const targetId = e.target.id;
+    const selector = '#' + targetId;
+    // 重复 mousedown 在同一元素上，则忽略重复的
+    if (targetId === document.activeElement.id) return ;
     // 1. 首先通过 wrap 确定列表，此时最期望用户点击非列表元素的空白区域
     let wrappedList = listWrapInfo.get(selector);
     /** 是否是序列模式的列表 */
