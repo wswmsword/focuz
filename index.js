@@ -241,6 +241,8 @@ function focuz(config) {
   });
 
   rootEle.addEventListener("focusout", function() {
+    // 标签页处于非激活状态而失焦，则不做处理
+    if (!document.hasFocus()) return ;
     // 用于保护可切换的入口（开关，同时作为出口的入口）能够被触发；也可用 relatedTarget 判断，但 relatedTarget 不兼容 Safari（23.09.08）
     if (triggeredToggleByMouse)
       return triggeredToggleByMouse = false;
