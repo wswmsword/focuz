@@ -60,7 +60,7 @@ function focuz(config) {
           const { parentList, entry, exitDelay } = listInfo;
           delayToProcessWithCondition(exitDelay, () => {
             lastActivity = "ESC_EXIT";
-            exitToTarget(parentList, entry);
+            exitToTarget(parentList, entry, listInfo);
           });
           return;
         }
@@ -75,16 +75,18 @@ function focuz(config) {
       if (isEnterEvent(e)) {
         // 禁止事件入口
         if (entryFocusInfo.disableAuto) return;
-        const { delay, toggleEntry, entered } = entryFocusInfo;
+        const { delay, toggleEntry, target } = entryFocusInfo;
+        const listFocusInfo = listsFocusInfo.get(target);
+        const { entered } = listFocusInfo;
         delayToProcessWithCondition(delay, () => {
           if (toggleEntry && entered) {
             lastActivity = "SWITCH_ENTRY";
-            entryFocusInfo.entered = false;
+            listFocusInfo.entered = false;
             updateCurrentList(entryFocusInfo.parentList);
           } else {
             lastActivity = "KEY_ENTRY";
             focusByEntry(selector, e);
-            entryFocusInfo.entered = true;
+            listFocusInfo.entered = true;
           }
         });
 
@@ -105,7 +107,7 @@ function focuz(config) {
         if (exitFocusInfo.disableAuto) return;
         delayToProcessWithCondition(exitFocusInfo.delay, () => {
           lastActivity = "KEY_EXIT";
-          focusByExit(selector, e);
+          focusByExit(selector, e, exitFocusInfo.list);
         });
 
         return;
@@ -187,19 +189,21 @@ function focuz(config) {
     const entryFocusInfo = entriesFocusInfo.get(selector);
     const isEntry = entryFocusInfo != null;
     if (isEntry) {
-      const { delay, toggleEntry, entered } = entryFocusInfo;
+      const { delay, toggleEntry, target } = entryFocusInfo;
+      const listFocusInfo = listsFocusInfo.get(target);
+      const { entered } = listFocusInfo;
       // 禁止事件入口
       if (entryFocusInfo.disableAuto) return;
       delayToProcessWithCondition(delay, () => {
         if (toggleEntry && entered) {
           lastActivity = "SWITCH_ENTRY";
-          entryFocusInfo.entered = false;
+          listFocusInfo.entered = false;
           updateCurrentList(entryFocusInfo.parentList);
         } else {
           if (lastActivity === "KEY_ENTRY") return; // 若是已通过 keydown 入口进入，则无需再从这里的 click 入口进入，打断
           lastActivity = "CLICK_ENTRY";
           focusByEntry(selector, e);
-          entryFocusInfo.entered = true;
+          listFocusInfo.entered = true;
         }
       });
     }
@@ -209,12 +213,12 @@ function focuz(config) {
       return exitFocusInfo != null;
     })();
     if (isExit) {
-      const { delay, disableAuto } = exitFocusInfo;
+      const { delay, disableAuto, list } = exitFocusInfo;
       // 禁止事件出口
       if (disableAuto) return;
       delayToProcessWithCondition(delay, () => {
         lastActivity = "CLICK_EXIT";
-        focusByExit(selector, e);
+        focusByExit(selector, e, list);
       });
     }
   });
@@ -276,7 +280,7 @@ function focuz(config) {
         const { parentList, entry, exitDelay } = listInfo;
         delayToProcessWithCondition(exitDelay, () => {
           lastActivity = "LAYER_EXIT";
-          exitToTarget(parentList, entry);
+          exitToTarget(parentList, entry, listInfo);
         });
       } else if (isWild) updateCurrentList(null); // 若是列表禁止 outlist 退出类型，点击野区后，仍需置空 currentList
     }
@@ -405,10 +409,9 @@ function focuz(config) {
           const {
             wrap: originListWrap, // 当前列表的包包
             lastFocusIdx: lastFocusIdxCurList,
-            entry,
+            entered: enteredCurList,
           } = listFocusInfo;
-          const { entered: enteredCurList } = hotEntriesFocusInfo.get(entry);
-          return function(v, nextWrap) { // 该函数闭包外层的变量，该函数将在遍历新配置的时候执行  
+          return function(v, nextWrap) { // 该函数闭包外层的变量，该函数将在遍历新配置的时候执行
             // 更新当前列表
             if (originListWrap === nextWrap) {
               newCurrentListWrap = nextWrap;
@@ -422,9 +425,8 @@ function focuz(config) {
             const listFocusInfo = hotListsFocusInfo.get(hotListWrapInfo.get(nextWrap));
             const {
               lastFocusIdx,
-              entry,
+              entered,
             } = listFocusInfo;
-            const { entered } = hotEntriesFocusInfo.get(entry);
             return {
               lastFocusIdx, // 返回最后一次聚焦的 id，列表更新后继承该值
               entered,
@@ -458,10 +460,11 @@ function focuz(config) {
   }
 
   /** 通过出口返回至入口 */
-  function focusByExit(selector, e) {
+  function focusByExit(selector, e, list) {
     e.preventDefault();
     const { parentList, target } = exitsFocusInfo.get(selector);
-    exitToTarget(parentList, target);
+    const listFocusInfo = listsFocusInfo.get(list);
+    exitToTarget(parentList, target, listFocusInfo);
   }
 
   /** 更新当前聚焦的列表 */
@@ -470,7 +473,7 @@ function focuz(config) {
   }
 
   /** 退出，聚焦，更新状态 */
-  function exitToTarget(parentList, entry) {
+  function exitToTarget(parentList, entry, listFocusInfo) {
     const isRoot = parentList == null;
     const exitTarget = isRoot ? entry : (() => {
       const parentListInfo = listsFocusInfo.get(parentList);
@@ -480,8 +483,7 @@ function focuz(config) {
     })();
     document.querySelector(exitTarget).focus();
     updateCurrentList(parentList); // 即将落入的列表是当前列表的父列表
-    const entryFocusInfo = entriesFocusInfo.get(entry);
-    entryFocusInfo.entered = false;
+    listFocusInfo.entered = false;
   }
 }
 
@@ -586,7 +588,6 @@ function generateFocusData(obj) {
       if (firstEntry == null) firstEntry = entryNode;
       (isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo).set(entryNode, {
         delay: entryDelay,
-        entered: false || enteredList, // 是否进入
         toggleEntry: toggle, // 该入口是否同时支持退出？
         parentList,
         disableAuto: entryManual, // 是否关闭由事件触发的入口
@@ -595,6 +596,7 @@ function generateFocusData(obj) {
       (isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo).set(exitNode, {
         delay: exitDelay,
         parentList,
+        list: pureList,
         disableAuto: exitManual, // 是否关闭由事件触发的出口
         target: entryNode, // 出口目标
       });
@@ -609,6 +611,7 @@ function generateFocusData(obj) {
         wrap: listWrap,
         range: isRangeMode,
         disableAuto: exitManual, // 是否关闭由事件触发的出口
+        entered: enteredList, // 是否进入
         exitDelay,
       });
       (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
