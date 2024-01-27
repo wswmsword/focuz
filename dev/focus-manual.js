@@ -23,8 +23,8 @@ manualWrap.addEventListener("focusout", function(e) {
   if (exitLi6ByKeydown || exitLi6ByClick) {
     exitLi6ByKeydown = false;
     exitLi6ByClick = false;
-    return
-  };
+    return ;
+  }
   setTimeout(() => {
     const active = document.activeElement;
     if (!manualWrap.contains(active)) {

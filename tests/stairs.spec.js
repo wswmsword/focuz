@@ -204,6 +204,7 @@ test.describe("Pressing Keyboard On Stair Buttons", () => {
     await expect(page.getByRole("button", { name: "li2.1", exact: true })).toBeFocused();
     await sTab(page); // li2.3(entry)
     await enter(page); // li3.3(right entry)
+    await tab(page); // li3.4(exit 2)
     await tab(page); // li3.1(left entry)
     await enter(page); // li4.1
     await tab(page); // li4.2(exit)
@@ -291,7 +292,7 @@ test.describe("Mixing Click And Press Stair Buttons", () => {
     await wrap.click({ position: { x: 0, y: 0 } });
     await expect(wrap).toBeFocused();
     await sTab(page);
-    await expect(btn(page, "li2.3(entry)")).toBeFocused();
+    await expect(btn(page, "li2.4(entry 2)")).toBeFocused();
   });
 
   test("should protect focus when pressing tab with shift (sequence)", async ({ page }) => {
@@ -329,5 +330,24 @@ test.describe("Mixing Click And Press Stair Buttons", () => {
     await expect(wrap).toBeFocused();
     await sTab(page);
     await expect(btn(page, "dli5")).toBeFocused();
+  });
+
+  test("should correct focus by pressing Tab in wild area", async ({ page }) => {
+    const li6_3 = btn(page, "li6.3(manual exit)");
+    const aboveOcean = page.getByTestId("above-ocean");
+    await btn(page, "li6.1").click();
+    await tab(page);
+    await tab(page);
+    await expect(li6_3).toBeFocused();
+    await page.waitForTimeout(69); // see focus-manual.js
+    await esc(page);
+    await expect(btn(page, "li5.1")).toBeFocused();
+    await aboveOcean.click();
+    // await esc(page);
+    await expect(btn(page, "li3.3(right entry)")).toBeFocused();
+    await aboveOcean.click();
+    await expect(aboveOcean).toBeFocused();
+    await sTab(page);
+    await expect(li6_3).toBeFocused();
   });
 });

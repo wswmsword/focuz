@@ -12,8 +12,9 @@
   "scripts": {
     "dev": "npm run compile:dev -- --watch",
     "compile:dev": "BUILD_ENV=dev BABEL_ENV=es5 rollup -c",
-    "t:stairs": "npx playwright test stairs.spec.js",
-    "t:s:ui": "npx playwright test stairs.spec.js --ui"
+    "t:s": "npx playwright test stairs.spec.js",
+    "t:s:ui": "npx playwright test stairs.spec.js --ui",
+    "t:s:h": "npx playwright test stairs.spec.js --headed"
   },
   "repository": {
     "type": "git",

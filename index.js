@@ -564,8 +564,9 @@ function generateFocusData(obj) {
   function onConfigObject(updateHotCurrentList) { // 该层函数用于输入用于更新列表的函数，与外层形成闭包，携带外层变量
     return function(obj, pureList, parentList, lastChildEntry, isHotConfig) {
       const { entry, exit, list, id } = obj;
-      const { node: entryNode, delay: entryDelay, toggle, manual: entryManual } = isStr(entry) ? { node: entry } : entry;
-      const { node: exitNode, outlist: outlistExit, esc: escapeExit, delay: exitDelay, manual: exitManual } = isStr(exit) ? { node: exit } : exit;
+      const entries = arraify(entry).reduce(aryNodesReducer, []);
+      const firstEntryNode = entries[0].node;
+      const exits = arraify(exit).reduce(aryNodesReducer, []);
       const { wrap: listWrap, initActive, range } = isObj(list) ? list : {};
       let lastFocusIdxFromHotList = -1;
       let enteredList = false;
@@ -585,20 +586,52 @@ function generateFocusData(obj) {
         (isHotConfig ? hotShiftTabPortal : coldShiftTabPortal).set(head, tail);
       } else
         (isHotConfig ? hotSequenceLists : coldSequenceLists).push(pureList);
-      if (firstEntry == null) firstEntry = entryNode;
-      (isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo).set(entryNode, {
-        delay: entryDelay,
-        toggleEntry: toggle, // 该入口是否同时支持退出？
-        parentList,
-        disableAuto: entryManual, // 是否关闭由事件触发的入口
-        target: pureList, // 入口目标
+      if (firstEntry == null) firstEntry = firstEntryNode;
+      const entriesFocusInfo = isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo;
+      /** 记录作用在所有入口上的属性 */
+      let entryGlobal = {};
+      for(const entry of entries ) {
+        const { node, delay, toggle, manual } = entry;
+        if (node == null) {
+          entryGlobal = { delay, toggle, manual };
+          break;
+        }
+      }
+      entries.forEach(({ node, delay, toggle, manual }) => {
+        if (node == null) return ;
+        const { delay: gd, toggle: dt, manual: gm } = entryGlobal
+        entriesFocusInfo.set(node, {
+          delay: delay == null ? gd : delay,
+          toggleEntry: toggle == null ? dt : toggle, // 该入口是否同时支持退出？
+          parentList,
+          disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的入口
+          target: pureList, // 入口目标
+        });
       });
-      (isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo).set(exitNode, {
-        delay: exitDelay,
-        parentList,
-        list: pureList,
-        disableAuto: exitManual, // 是否关闭由事件触发的出口
-        target: entryNode, // 出口目标
+      /** 记录作用在所有出口上的属性 */
+      let exitGlobal = {};
+      for(const exit of exits ) {
+        const { node, delay, manual } = exit;
+        if (node == null) {
+          exitGlobal = { delay, manual };
+          break;
+        }
+      }
+      const exitsFocusInfo = isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo;
+      let outlistExit = false;
+      let escapeExit = false;
+      exits.forEach(({ node, delay, manual, outlist, esc }) => {
+        if (outlist != null) outlistExit = outlist;
+        if (esc != null) escapeExit = esc;
+        if (node == null) return ;
+        const { delay: gd, manual: gm } = exitGlobal;
+        exitsFocusInfo.set(node, {
+          delay: delay == null ? gd : delay,
+          parentList,
+          list: pureList,
+          disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的出口
+          target: firstEntryNode, // 出口目标
+        });
       });
       (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
         initFocusIdx: initActive, // 首次聚焦元素 id
@@ -606,13 +639,13 @@ function generateFocusData(obj) {
         outlistExit, // 蒙层出口
         escExit: escapeExit, // 是否存在 esc 出口
         parentList,
-        entry: entryNode, // 进入该列表的入口
+        entry: firstEntryNode, // 进入该列表的入口
         lastChildEntry, // 该列表中进入最后一个子列表的入口
         wrap: listWrap,
         range: isRangeMode,
-        disableAuto: exitManual, // 是否关闭由事件触发的出口
+        disableAuto: exitGlobal.manual, // 是否关闭由事件触发的出口
         entered: enteredList, // 是否进入
-        exitDelay,
+        exitDelay: exitGlobal.delay,
       });
       (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
       if (isHotConfig) {
@@ -620,6 +653,28 @@ function generateFocusData(obj) {
           parentList,
         });
       }
+    }
+
+    /** 分解合成字符串 node 数组 */
+    function aryNodesReducer(acc, cur) {
+      if (isStr(cur)) {
+        return acc.concat({ node: cur });
+      }
+      if (Array.isArray(cur.node)) {
+        cur.node.forEach(node => {
+          acc = acc.concat({
+            ...cur,
+            node,
+          });
+        });
+        return acc;
+      }
+      return acc.concat(cur);
+    }
+
+    /** 数组化入参 */
+    function arraify(v) {
+      return (isStr(v) ? [v] : Array.isArray(v) ? v : [v]);
     }
   }
 
@@ -652,27 +707,35 @@ function generateFocusData(obj) {
 
 /** 遍历配置 */
 function travelConfig(obj, onConfigObject, parentList, isHotConfig) {
-  // 是否为数组
-  if (Array.isArray(obj)) {
+  const { sub, list, id } = obj;
+  const pureList = isObj(list) ? list.nodes : list;
+  /** 是否叶子节点，不再有子元素 */
+  const isLeave = sub == null;
+  const subAry = isLeave ? [] : [].concat(sub);
+  const lastChildEntry = isLeave ? null : getEntry(subAry.at(-1).entry);
+  const hotConfig = isHotConfig || (id != null);
+  onConfigObject(obj, pureList, parentList, lastChildEntry, hotConfig);
 
-    for (const ele of obj) {
-      travelConfig(ele, onConfigObject, parentList, isHotConfig);
+  subAry.forEach(subItem =>
+    travelConfig(subItem, onConfigObject, pureList, isHotConfig));
+
+  /** 获取一个入口 */
+  function getEntry(entry) {
+    const gotEntry = getStrOrObjEntry(entry);
+    if (gotEntry != null) return gotEntry;
+    if (Array.isArray(entry)) {
+      const gotEntry = getStrOrObjEntry(entry[0]);
+      if (gotEntry != null) return gotEntry;
     }
-  } else if (isObj(obj)) { // 是否为对象
-    const { list, id } = obj;
-    const listNodes = isObj(list) ? list.nodes : list;
-    /** 不包含子信息的纯列表 */
-    const [pureList, lastChildEntry] = listNodes.reduce((acc, cur) => {
-      if (isObj(cur)) {
-        const curEntry = isStr(cur.entry) ? cur.entry : cur.entry.node;
-        return [acc[0].concat(curEntry), curEntry];
+
+    function getStrOrObjEntry(entry) {
+      if (isStr(entry)) return entry;
+      if (isObj(entry)) {
+        const entryNode = [].concat(entry.node);
+        return entryNode[0];
       }
-      else
-        return [acc[0].concat(cur), acc[1]];
-    }, [[]]);
-    const hotConfig = isHotConfig || (id != null);
-    onConfigObject(obj, pureList, parentList, lastChildEntry, hotConfig);
-    travelConfig(listNodes, onConfigObject, pureList, hotConfig);
+    }
+
   }
 }
 
