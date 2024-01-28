@@ -72,7 +72,7 @@ function focuz(config) {
     // 当前在入口
     if (isEntry) {
       // 按下 Enter
-      if (isEnterEvent(e)) {
+      if (entryFocusInfo.key(e)) {
         // 禁止事件入口
         if (entryFocusInfo.disableAuto) return;
         const { delay, toggleEntry, target } = entryFocusInfo;
@@ -102,7 +102,7 @@ function focuz(config) {
     // 当前在出口
     if (isExit) {
       // 按下 Enter
-      if (isEnterEvent(e)) {
+      if (exitFocusInfo.key(e)) {
         // 禁止事件出口
         if (exitFocusInfo.disableAuto) return;
         delayToProcessWithCondition(exitFocusInfo.delay, () => {
@@ -141,13 +141,13 @@ function focuz(config) {
     if (isSequenceList) {
       const itemsLen = currentList.length;
       const lastFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, itemsLen);
-      if (isTabForward(e)) {
+      if (curListInfo.forwardKey(e)) {
         lastActivity = "NAV_FORWARD";
         /** 下一个聚焦元素的 id */
         const nextFocusIdx = (lastFocusIdx + (isSequenceListItem ? 1 : 0)) % itemsLen;
         focusNext(nextFocusIdx);
       }
-      else if (isTabBackward(e)) {
+      else if (curListInfo.backwardKey(e)) {
         lastActivity = "NAV_BACKWARD";
         const nextFocusIdx = (lastFocusIdx - 1 + itemsLen) % itemsLen;
         focusNext(nextFocusIdx);
@@ -159,7 +159,7 @@ function focuz(config) {
         const nextFocusedEle = document.querySelector(currentList[nextFocusIdx]);
         nextFocusedEle.focus(); // 聚焦
         e.preventDefault(); // 阻止默认行为
-      };
+      }
     }
     // 当前在范围模式的列表
     else if (isRangeList) {
@@ -567,7 +567,7 @@ function generateFocusData(obj) {
       const entries = arraify(entry).reduce(aryNodesReducer, []);
       const firstEntryNode = entries[0].node;
       const exits = arraify(exit).reduce(aryNodesReducer, []);
-      const { wrap: listWrap, initActive, range } = isObj(list) ? list : {};
+      const { wrap: listWrap, initActive, range, next, prev } = isObj(list) ? list : {};
       let lastFocusIdxFromHotList = -1;
       let enteredList = false;
       if (updateHotCurrentList) {
@@ -577,8 +577,8 @@ function generateFocusData(obj) {
           enteredList = updateProps.entered;
         }
       }
-      /** 是否是范围模式 */
-      const isRangeMode = range === true;
+      /** 是否是范围模式，若是设置了自定义导航键，则退出范围模式 */
+      const isRangeMode = range === true && next == null && prev == null;
       if (isRangeMode) { // 是否范围模式
         const head = pureList[0];
         const tail = pureList.at(-1);
@@ -591,46 +591,48 @@ function generateFocusData(obj) {
       /** 记录作用在所有入口上的属性 */
       let entryGlobal = {};
       for(const entry of entries ) {
-        const { node, delay, toggle, manual } = entry;
+        const { node, delay, toggle, manual, key } = entry;
         if (node == null) {
-          entryGlobal = { delay, toggle, manual };
+          entryGlobal = { delay, toggle, manual, key };
           break;
         }
       }
-      entries.forEach(({ node, delay, toggle, manual }) => {
+      entries.forEach(({ node, delay, toggle, manual, key }) => {
         if (node == null) return ;
-        const { delay: gd, toggle: dt, manual: gm } = entryGlobal
+        const { delay: gd, toggle: dt, manual: gm, key: gk } = entryGlobal
         entriesFocusInfo.set(node, {
           delay: delay == null ? gd : delay,
           toggleEntry: toggle == null ? dt : toggle, // 该入口是否同时支持退出？
           parentList,
           disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的入口
           target: pureList, // 入口目标
+          key: key || gk || isEnterEvent, // 从入口进入列表的按键
         });
       });
       /** 记录作用在所有出口上的属性 */
       let exitGlobal = {};
       for(const exit of exits ) {
-        const { node, delay, manual } = exit;
+        const { node, delay, manual, key } = exit;
         if (node == null) {
-          exitGlobal = { delay, manual };
+          exitGlobal = { delay, manual, key };
           break;
         }
       }
       const exitsFocusInfo = isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo;
       let outlistExit = false;
       let escapeExit = false;
-      exits.forEach(({ node, delay, manual, outlist, esc }) => {
+      exits.forEach(({ node, delay, manual, outlist, esc, key }) => {
         if (outlist != null) outlistExit = outlist;
         if (esc != null) escapeExit = esc;
         if (node == null) return ;
-        const { delay: gd, manual: gm } = exitGlobal;
+        const { delay: gd, manual: gm, key: gk } = exitGlobal;
         exitsFocusInfo.set(node, {
           delay: delay == null ? gd : delay,
           parentList,
           list: pureList,
           disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的出口
           target: firstEntryNode, // 出口目标
+          key: key || gk || isEnterEvent, // 从出口回到入口的按键
         });
       });
       (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
@@ -646,6 +648,8 @@ function generateFocusData(obj) {
         disableAuto: exitGlobal.manual, // 是否关闭由事件触发的出口
         entered: enteredList, // 是否进入
         exitDelay: exitGlobal.delay,
+        forwardKey: next || isTabForward,
+        backwardKey: prev || isTabBackward,
       });
       (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
       if (isHotConfig) {
