@@ -1,13 +1,14 @@
-
+import { chromium } from "@playwright/test";
 import { test, expect } from "@playwright/test";
 import exp from "node:constants";
 import {btn, enter, esc, sTab, tab} from "./utils.js";
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/");
-});
 
 test.describe("Clicking Stair Buttons", () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+  });
 
   test("should focus second element of list by clicking entry after setting `initActive: 1`", async ({ page }) => {
     await page.getByRole("button", { name: "entry", exact: true }).click();
@@ -137,9 +138,27 @@ test.describe("Clicking Stair Buttons", () => {
     await expect(aboveOcean).toBeFocused();
   });
 
+  test("should switch entry to exit by clicking entry", async ({ page }) => {
+    const toggle = btn(page, "entry");
+    const item1_2 = btn(page, "li1.2(exit)");
+    await toggle.click();
+    await expect(item1_2).toBeFocused();
+    await toggle.click();
+    await expect(toggle).toBeFocused();
+    await toggle.click();
+    await expect(item1_2).toBeFocused();
+    await toggle.click();
+    await expect(toggle).toBeFocused();
+  });
+
 });
 
 test.describe("Pressing Keyboard On Stair Buttons", () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+  });
+
   test("should focus list item by pressing Enter key on entry", async ({ page }) => {
     const entry = page.getByRole("button", { name: "entry", exact: true });
     const exit1_2 = page.getByRole("button", { name: "li1.2(exit)", exact: true });
@@ -254,6 +273,10 @@ test.describe("Pressing Keyboard On Stair Buttons", () => {
 
 test.describe("Mixing Click And Press Stair Buttons", () => {
 
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+  });
+
   test("should tab to focus initial element after clicking wrap of list", async ({ page }) => {
     const wrap = page.locator("#li1");
     const initE = page.getByRole("button", { name: "li1.2(exit)", exact: true });
@@ -350,4 +373,34 @@ test.describe("Mixing Click And Press Stair Buttons", () => {
     await sTab(page);
     await expect(li6_3).toBeFocused();
   });
+
+  test("should switch entry to exit by toggle", async ({ page }) => {
+    const toggle = btn(page, "entry");
+    const item1_3 = btn(page, "li1.3(entry)");
+    await toggle.click(); // li1.2
+    await tab(page); // li1.3
+    await toggle.click(); // entry
+    await expect(toggle).toBeFocused();
+    await toggle.click();
+    await expect(item1_3).toBeFocused();
+  });
+});
+
+// commit 2287806069626e8e741fe9674a50467da85c4a51
+test("should switch between foreground and background", async () => {
+  const browser = await chromium.launch(); // `.hasFocus()` not work in Nightly
+  const context = await browser.newContext();
+  const mainPage = await context.newPage();
+  await mainPage.bringToFront();
+  await mainPage.goto("/");
+
+  const toggle = btn(mainPage, "entry");
+  const item1_2 = btn(mainPage, "li1.2(exit)");
+  await toggle.click();
+  await expect(item1_2).toBeFocused();
+  const otherPage = await context.newPage()
+  await otherPage.bringToFront();
+  await otherPage.goto("/");
+  await mainPage.bringToFront();
+  await expect(item1_2).toBeFocused();
 });
