@@ -402,37 +402,39 @@ function focuz(config) {
         lastActivity = "UPDATE_LIST";
         document.querySelector(newCurrentListWrap).focus(); // 聚焦回当前列表的包包，使下次键盘导航能聚焦至上一次的焦点位置
       }
-      function updateCurrentList(coldListsFocusInfo, hotListsFocusInfo, hotEntriesFocusInfo, hotListWrapInfo) {
-        // 当前列表是否是动态列表
-        if (coldListsFocusInfo.get(currentList) == null) {
-          const listFocusInfo = hotListsFocusInfo.get(currentList);
+
+      /** 更新后列表可能变多或变少，将 currentList 的引用更新为更新后的值，并获取更新前的 lastFocusIdx 和 entered */
+      function updateCurrentList(hotListsFocusInfo, hotListWrapInfo) {
+        const activeListFocusInfo = hotListsFocusInfo.get(currentList);
+        // 当前列表不是动态列表
+        if (activeListFocusInfo == null) return () => {};
+
+        return function(v, nextWrap) { // 该函数闭包外层的变量，该函数将在遍历新配置的时候执行
           const {
-            wrap: originListWrap, // 当前列表的包包
+            wrap: activeListWrap, // 当前列表的包包
             lastFocusIdx: lastFocusIdxCurList,
             entered: enteredCurList,
-          } = listFocusInfo;
-          return function(v, nextWrap) { // 该函数闭包外层的变量，该函数将在遍历新配置的时候执行
-            // 更新当前列表
-            if (originListWrap === nextWrap) {
-              newCurrentListWrap = nextWrap;
-              currentList = v;
-              return {
-                lastFocusIdx: lastFocusIdxCurList, // 返回最后一次聚焦的 id，列表更新后继承该值
-                entered: enteredCurList,
-              };
-            }
-            // 更新其它列表
-            const listFocusInfo = hotListsFocusInfo.get(hotListWrapInfo.get(nextWrap));
-            const {
-              lastFocusIdx,
-              entered,
-            } = listFocusInfo;
+          } = activeListFocusInfo;
+          // 更新当前列表
+          if (activeListWrap === nextWrap) {
+            newCurrentListWrap = nextWrap;
+            currentList = v;
             return {
-              lastFocusIdx, // 返回最后一次聚焦的 id，列表更新后继承该值
-              entered,
-            }
-          };
-        } else return () => null;
+              lastFocusIdx: lastFocusIdxCurList, // 返回最后一次聚焦的 id，列表更新后继承该值
+              entered: enteredCurList,
+            };
+          }
+          // 更新其它列表
+          const listFocusInfo = hotListsFocusInfo.get(hotListWrapInfo.get(nextWrap));
+          const {
+            lastFocusIdx,
+            entered,
+          } = listFocusInfo;
+          return {
+            lastFocusIdx, // 返回最后一次聚焦的 id，列表更新后继承该值
+            entered,
+          }
+        };
       }
     },
   };
@@ -684,7 +686,7 @@ function generateFocusData(obj) {
 
   /** 更新指定 id 的配置 */
   function updateHotConfig(id, config, updateCurrentList) {
-    const updateCurrentListByWrap = updateCurrentList(coldListsFocusInfo, hotListsFocusInfo, hotEntriesFocusInfo, hotListWrapInfo);
+    const updateCurrentListByWrap = updateCurrentList(hotListsFocusInfo, hotListWrapInfo);
     // 动态热数据置空
     [hotTabPortal, hotShiftTabPortal, hotEntriesFocusInfo, hotExitsFocusInfo, hotListsFocusInfo, hotListWrapInfo].forEach(e => e.clear());
     hotSequenceLists = [];
