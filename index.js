@@ -518,13 +518,13 @@ function generateFocusData(obj) {
 
   // 焦点数据分为静态和动态两种，变量前缀分别为 cold 和 hot，动态数据将用于更新列表
   const [
-    coldTabPortal, hotTabPortal,
-    coldShiftTabPortal, hotShiftTabPortal,
-    coldEntriesFocusInfo, hotEntriesFocusInfo,
-    coldExitsFocusInfo, hotExitsFocusInfo,
-    coldListsFocusInfo, hotListsFocusInfo,
-    coldListWrapInfo, hotListWrapInfo
-  ] = new Array(12).fill().map(() => new Map());
+    coldTabPortal, coldShiftTabPortal, coldEntriesFocusInfo,
+    coldExitsFocusInfo, coldListsFocusInfo, coldListWrapInfo
+  ] = new Array(6).fill().map(() => new Map());
+  let [
+    hotTabPortal, hotShiftTabPortal, hotEntriesFocusInfo,
+    hotExitsFocusInfo, hotListsFocusInfo, hotListWrapInfo
+  ] = new Array(6).fill().map(() => new Map());
   const coldSequenceLists = [];
   let hotSequenceLists = [];
   let firstEntry = null;
@@ -686,9 +686,10 @@ function generateFocusData(obj) {
 
   /** 更新指定 id 的配置 */
   function updateHotConfig(id, config, updateCurrentList) {
-    const updateCurrentListByWrap = updateCurrentList(hotListsFocusInfo, hotListWrapInfo);
+    const updateCurrentListByWrap = updateCurrentList(hotListsFocusInfo, hotListWrapInfo); // 这里传入的入参为引用，因此后方的值设为 new Map() 将不影响函数内取得原引用
     // 动态热数据置空
-    [hotTabPortal, hotShiftTabPortal, hotEntriesFocusInfo, hotExitsFocusInfo, hotListsFocusInfo, hotListWrapInfo].forEach(e => e.clear());
+    hotTabPortal = new Map(); hotShiftTabPortal = new Map(); hotEntriesFocusInfo = new Map();
+    hotExitsFocusInfo = new Map(); hotListsFocusInfo = new Map(); hotListWrapInfo = new Map();
     hotSequenceLists = [];
     const { parentList } = hotConfigInfo.get(id);
     travelConfig(config, onConfigObject(updateCurrentListByWrap), parentList, true);
