@@ -54,3 +54,29 @@ export function addCondition(condition, processor) {
     if (condition()) processor(...props);
   };
 }
+
+/** 找到两个元素的最小公共祖先元素 */
+export const findLowestCommonAncestorNode = function(x, y) {
+  if (x == null || y == null) return null;
+  if (x.contains(y)) return x;
+  if (y.contains(x)) return y;
+
+  const range = new Range();
+  range.setStartBefore(x);
+  range.setEndAfter(y);
+  if (range.collapsed) {
+     range.setStartBefore(y);
+     range.setEndAfter(x);
+  }
+  return range.commonAncestorContainer;
+};
+
+/** 找到两个元素的最小公共祖先元素，通过 selector */
+export function findLowestCommonAncestorNodeByList(list) {
+  const head = document.querySelector(list[0]);
+  if (head == null) return null;
+  const tail = document.querySelector(list.at(-1));
+  if (tail == null) return null;
+  const wrapE = findLowestCommonAncestorNode(head, tail);
+  return `#${wrapE.id}`;
+}

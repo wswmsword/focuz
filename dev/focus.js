@@ -11,7 +11,6 @@ const z = focuz({
   },
   list: {
     nodes: ["#i1_1", "#ex1", "#en2"],
-    wrap: "#li1",
     initActive: 1,
   },
   sub: {
@@ -27,7 +26,6 @@ const z = focuz({
     },
     list: {
       nodes: ["#i2_1", "#en3_2"],
-      wrap: "#li2",
       range: true,
     },
     sub: {
@@ -38,7 +36,6 @@ const z = focuz({
       },
       list: {
         nodes: ["#en4", "#ex3", "#en5", "#ex3_2"],
-        wrap: "#li3",
         initActive: 2,
       },
       sub: [{
@@ -50,7 +47,6 @@ const z = focuz({
         },
         list: {
           nodes: ["#i4_1", "#i4_4"],
-          wrap: "#li4",
           range: true,
         },
         sub: {
@@ -61,10 +57,7 @@ const z = focuz({
             esc: true,
             outlist: true,
           },
-          list: {
-            nodes: ["#dli1", "#dli2", "#dli3", '#more'],
-            wrap: "#li7",
-          },
+          list: ["#dli1", "#dli2", "#dli3", '#more'],
         }
       }, {
         entry: "#en5",
@@ -73,20 +66,14 @@ const z = focuz({
           esc: true,
           outlist: true,
         },
-        list: {
-          nodes: ["#i5_1", "#ex5", "#en6"],
-          wrap: "#li5",
-        },
+        list: ["#i5_1", "#ex5", "#en6"],
         sub: {
           entry: {
             node: "#en6",
             manual: true,
           },
           exit: ["#ex6", { manual: true }],
-          list: {
-            nodes: ["#i6_1", "#i6_2", "#ex6"],
-            wrap: "#li6",
-          },
+          list: ["#i6_1", "#i6_2", "#ex6"],
         }
       }]
     }

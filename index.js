@@ -1,4 +1,14 @@
-import { addCondition, delayToProcess, isEnterEvent, isEscapeEvent, isObj, isStr, isTabBackward, isTabForward } from "./utils";
+import {
+  addCondition,
+  delayToProcess,
+  findLowestCommonAncestorNode, findLowestCommonAncestorNodeByList,
+  isEnterEvent,
+  isEscapeEvent,
+  isObj,
+  isStr,
+  isTabBackward,
+  isTabForward
+} from "./utils";
 
 /** 入口相关的焦点活动 */
 const entryFocusActivity = ["KEY_ENTRY", "SWITCH_ENTRY", "CLICK_ENTRY", "INVOKE_ENTRY"];
@@ -18,6 +28,7 @@ function focuz(config) {
     listWrapInfo,
     firstEntry,
     updateHotConfig,
+    delayWrapList,
   } = resolveFocusConfig(config);
 
   const rootEle = document.querySelector(root);
@@ -390,6 +401,7 @@ function focuz(config) {
           const nextIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(parentListInfo?.lastFocusIdx, parentListInfo?.initFocusIdx, parentList.length);
           lastActivity = "INVOKE_EXIT";
           document.querySelector(parentList[nextIdx]).focus();
+          updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo);
           updateCurrentList(parentList);
         }
       }
@@ -459,6 +471,7 @@ function focuz(config) {
     const curListInfo = listsFocusInfo.get(entryList);
     const nextIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo?.lastFocusIdx, curListInfo?.initFocusIdx, entryList.length);
     document.querySelector(entryList[nextIdx]).focus();
+    updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo);
   }
 
   /** 通过出口返回至入口 */
@@ -486,6 +499,21 @@ function focuz(config) {
     document.querySelector(exitTarget).focus();
     updateCurrentList(parentList); // 即将落入的列表是当前列表的父列表
     listFocusInfo.entered = false;
+    updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo);
+  }
+
+  /** 更新配置数据中列表的 wrap */
+  function updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo) {
+    const removeIdx = [];
+    delayWrapList.forEach((list, i) => {
+      const wrap = findLowestCommonAncestorNodeByList(list);
+      if (wrap != null) {
+        removeIdx.push(i);
+        listsFocusInfo.get(list).wrap = wrap;
+        listWrapInfo.set(wrap, list);
+      }
+    });
+    removeIdx.forEach(i => delayWrapList.splice(i, 1));
   }
 }
 
@@ -525,6 +553,8 @@ function generateFocusData(obj) {
     hotTabPortal, hotShiftTabPortal, hotEntriesFocusInfo,
     hotExitsFocusInfo, hotListsFocusInfo, hotListWrapInfo
   ] = new Array(6).fill().map(() => new Map());
+  /** 需要延迟计算 wrap 的列表，这些列表虽然已在配置中，但实际浏览器中还未展示 */
+  const delayWrapList = [];
   const coldSequenceLists = [];
   let hotSequenceLists = [];
   let firstEntry = null;
@@ -532,7 +562,7 @@ function generateFocusData(obj) {
 
   travelConfig(obj, onConfigObject());
 
-  // 合成静态与动态数据
+  // 合并静态与动态数据
   const sequenceLists = coldSequenceLists.concat(hotSequenceLists);
   const tabPortal = new Map([...coldTabPortal, ...hotTabPortal]);
   const shiftTabPortal = new Map([...coldShiftTabPortal, ...hotShiftTabPortal]);
@@ -560,6 +590,8 @@ function generateFocusData(obj) {
     firstEntry,
     /** 更新配置 */
     updateHotConfig,
+    /** 需要延迟获取包裹的列表 */
+    delayWrapList,
   };
 
   /** 遍历到配置的对象时执行 */
@@ -569,10 +601,17 @@ function generateFocusData(obj) {
       const entries = arraify(entry).reduce(aryNodesReducer, []);
       const firstEntryNode = entries[0].node;
       const exits = arraify(exit).reduce(aryNodesReducer, []);
-      const { wrap: listWrap, initActive, range, next, prev } = isObj(list) ? list : {};
+      const { wrap: listWrapByConfig, initActive, range, next, prev } = isObj(list) ? list : {};
+      const listWrap = (() => {
+        if (listWrapByConfig == null)
+          return findLowestCommonAncestorNodeByList(pureList);
+        return listWrapByConfig;
+      })();
+      // 若是不能找到包裹，则先推入队列，后续触发入口或出口时再寻找
+      if (listWrap == null) delayWrapList.push(pureList);
       let lastFocusIdxFromHotList = -1;
       let enteredList = false;
-      if (updateHotCurrentList) {
+      if (updateHotCurrentList && listWrap != null) {
         const updateProps = updateHotCurrentList(pureList, listWrap);
         if (updateProps != null) {
           lastFocusIdxFromHotList = updateProps.lastFocusIdx;
@@ -653,7 +692,8 @@ function generateFocusData(obj) {
         forwardKey: next || isTabForward,
         backwardKey: prev || isTabBackward,
       });
-      (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
+      if (listWrap != null)
+        (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
       if (isHotConfig) {
         hotConfigInfo.set(id, {
           parentList,
@@ -694,7 +734,7 @@ function generateFocusData(obj) {
     const { parentList } = hotConfigInfo.get(id);
     travelConfig(config, onConfigObject(updateCurrentListByWrap), parentList, true);
 
-    // [原合成数据, 新合成数据]
+    // [原合并数据, 新合并数据]
     const newSequenceLists = coldSequenceLists.concat(hotSequenceLists);
     const newTabPortal = [tabPortal, new Map([...coldTabPortal, ...hotTabPortal])];
     const newShiftTabPortal = [shiftTabPortal, new Map([...coldShiftTabPortal, ...hotShiftTabPortal])];
@@ -702,7 +742,7 @@ function generateFocusData(obj) {
     const newExitsFocusInfo = [exitsFocusInfo, new Map([...coldExitsFocusInfo, ...hotExitsFocusInfo])];
     const newListsFocusInfo = [listsFocusInfo, new Map([...coldListsFocusInfo, ...hotListsFocusInfo])];
     const newListWrapInfo = [listWrapInfo, new Map([...coldListWrapInfo, ...hotListWrapInfo])];
-    // 使用新合成数据替换原合成数据
+    // 使用新合并数据替换原合并数据
     sequenceLists.splice(0, sequenceLists.length);
     sequenceLists.push(...newSequenceLists);
     [newTabPortal, newShiftTabPortal, newEntriesFocusInfo, newExitsFocusInfo, newListsFocusInfo, newListWrapInfo].forEach(([originMap, newMap]) => {

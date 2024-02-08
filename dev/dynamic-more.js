@@ -22,9 +22,6 @@ function moreItems() {
       esc: true,
       outlist: true,
     },
-    list: {
-      nodes: btnIds,
-      wrap: "#li7",
-    },
+    list: btnIds,
   });
 }
