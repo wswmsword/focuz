@@ -317,6 +317,7 @@ function focuz(config) {
           focusedListItem(); // 由于范围模式不支持焦点矫正，因此这里包容由范围模式触发的情况
           break;
         }
+        if (parentSelector === root) break; // 向上检查的最深深度为配置的根元素
       }
     }
 
