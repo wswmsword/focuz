@@ -406,24 +406,30 @@ function focuz(config) {
 
   return {
     /** 调用式入口 */
-    entry() {
-      if (currentList == null) {
+    entry(entry) {
+      const validSelector = (() => {
         const activeElement = document.activeElement;
-        const selector = activeElement?.id ? `#${activeElement.id}` : null;
-        if (selector === firstEntry) {
-          lastActivity = "INVOKE_ENTRY";
-          focusByEntry(firstEntry, { preventDefault() {} });
+        return entriesFocusInfo.has(entry) ?
+          entry :
+          entriesFocusInfo.has(`#${activeElement.id}`) ?
+            `#${activeElement.id}` :
+            getDefaultLastEntry()
+        function getDefaultLastEntry() {
+          if (currentList == null) return null;
+          const listInfo = listsFocusInfo.get(currentList);
+         return listInfo.lastChildEntry;
         }
-        else
-          document.querySelector(firstEntry).focus();
-      } else {
-        const listInfo = listsFocusInfo.get(currentList);
-        const lastChildEntry = listInfo.lastChildEntry;
-        if (lastChildEntry != null) {
-          lastActivity = "INVOKE_ENTRY";
-          focusByEntry(lastChildEntry, { preventDefault() {} });
-        }
+      })();
+
+      if (validSelector == null) {
+        // 野外
+        if (currentList == null) document.querySelector(firstEntry).focus();
+        // 最深深处，列表中无入口
+        return;
       }
+
+      lastActivity = "INVOKE_ENTRY";
+      focusByEntry(validSelector);
     },
     /** 调用式出口 */
     exit(e) {
