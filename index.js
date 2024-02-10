@@ -68,10 +68,12 @@ function focuz(config) {
         const listInfo = listsFocusInfo.get(currentList);
         if (listInfo.disableAuto) return;
         if (listInfo.escExit) {
-          const { parentList, entry, exitDelay } = listInfo;
+          const { parentList, entry, exitDelay, onExit } = listInfo;
           delayToProcessWithCondition(exitDelay, () => {
-            lastActivity = "ESC_EXIT";
-            exitToTarget(parentList, entry, listInfo);
+            Promise.resolve(onExit?.({ e })).then(_ => {
+              lastActivity = "ESC_EXIT";
+              exitToTarget(parentList, entry, listInfo);
+            });
           });
           return;
         }
@@ -86,18 +88,23 @@ function focuz(config) {
       if (entryFocusInfo.key(e)) {
         // 禁止事件入口
         if (entryFocusInfo.disableAuto) return;
-        const { delay, toggleEntry, target } = entryFocusInfo;
+        const { delay, toggleEntry, target, on } = entryFocusInfo;
         const listFocusInfo = listsFocusInfo.get(target);
-        const { entered } = listFocusInfo;
+        const { entered, onExit } = listFocusInfo;
+        e.preventDefault();
         delayToProcessWithCondition(delay, () => {
           if (toggleEntry && entered) {
-            lastActivity = "SWITCH_ENTRY";
-            listFocusInfo.entered = false;
-            updateCurrentList(entryFocusInfo.parentList);
+            Promise.resolve(onExit?.({ e })).then(_ => {
+              lastActivity = "SWITCH_ENTRY";
+              listFocusInfo.entered = false;
+              updateCurrentList(entryFocusInfo.parentList);
+            });
           } else {
-            lastActivity = "KEY_ENTRY";
-            focusByEntry(selector, e);
-            listFocusInfo.entered = true;
+            Promise.resolve(on?.({ e })).then(_ => {
+              lastActivity = "KEY_ENTRY";
+              focusByEntry(selector);
+              listFocusInfo.entered = true;
+            });
           }
         });
 
@@ -116,9 +123,13 @@ function focuz(config) {
       if (exitFocusInfo.key(e)) {
         // 禁止事件出口
         if (exitFocusInfo.disableAuto) return;
-        delayToProcessWithCondition(exitFocusInfo.delay, () => {
-          lastActivity = "KEY_EXIT";
-          focusByExit(selector, e, exitFocusInfo.list);
+        e.preventDefault();
+        const { delay, on, list } = exitFocusInfo;
+        delayToProcessWithCondition(delay, () => {
+          Promise.resolve(on?.({ e })).then(_ => {
+            lastActivity = "KEY_EXIT";
+            focusByExit(selector, list);
+          });
         });
 
         return;
@@ -131,11 +142,14 @@ function focuz(config) {
     if (focusedListWrap) {
       if (isTabBackward(e)) {
         const curListInfo = listsFocusInfo.get(currentList);
-        const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, currentList.length);
-        const nextFocus = curListInfo.range ? currentList.at(-1) : currentList[nextFocusIdx];
+        const { lastFocusIdx, initFocusIdx, range, on } = curListInfo;
+        const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(lastFocusIdx, initFocusIdx, currentList.length);
+        const nextFocus = range ? currentList.at(-1) : currentList[nextFocusIdx];
         const nextFocusEle = document.querySelector(nextFocus);
-        lastActivity = "FOCUS_PROTECT";
-        nextFocusEle.focus();
+        Promise.resolve(on?.({ e, prevI: lastFocusIdx, curI: nextFocusIdx })).then(_ => {
+          lastActivity = "FOCUS_PROTECT";
+          nextFocusEle.focus();
+        });
         e.preventDefault(); // 阻止默认行为
         return ;
       }
@@ -151,17 +165,24 @@ function focuz(config) {
     // 当前在列表（列表为序列模式）
     if (isSequenceList) {
       const itemsLen = currentList.length;
-      const lastFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, itemsLen);
-      if (curListInfo.forwardKey(e)) {
-        lastActivity = "NAV_FORWARD";
+      const { lastFocusIdx: _lfi, initFocusIdx, forwardKey, backwardKey, on } = curListInfo;
+      const lastFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(_lfi, initFocusIdx, itemsLen);
+      if (forwardKey(e)) {
         /** 下一个聚焦元素的 id */
         const nextFocusIdx = (lastFocusIdx + (isSequenceListItem ? 1 : 0)) % itemsLen;
-        focusNext(nextFocusIdx);
+        Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
+          lastActivity = "NAV_FORWARD";
+          focusNext(nextFocusIdx);
+        });
+        e.preventDefault(); // 阻止默认行为
       }
-      else if (curListInfo.backwardKey(e)) {
-        lastActivity = "NAV_BACKWARD";
+      else if (backwardKey(e)) {
         const nextFocusIdx = (lastFocusIdx - 1 + itemsLen) % itemsLen;
-        focusNext(nextFocusIdx);
+        Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
+          lastActivity = "NAV_BACKWARD";
+          focusNext(nextFocusIdx);
+        });
+        e.preventDefault(); // 阻止默认行为
       }
 
       /** 聚焦下一个元素 */
@@ -169,26 +190,32 @@ function focuz(config) {
         curListInfo.lastFocusIdx = nextFocusIdx; // 更新 lastFocusIdx
         const nextFocusedEle = document.querySelector(currentList[nextFocusIdx]);
         nextFocusedEle.focus(); // 聚焦
-        e.preventDefault(); // 阻止默认行为
       }
     }
     // 当前在范围模式的列表
     else if (isRangeList) {
       if (isTabForward(e)) {
-        lastActivity = "NAV_FORWARD";
         const rangeTailTarget = tabPortal.get(selector);
-        if (rangeTailTarget != null) {
-          document.querySelector(rangeTailTarget).focus(); // 聚焦
-          e.preventDefault(); // 阻止默认行为
-        }
+        if (rangeTailTarget != null) e.preventDefault(); // 阻止默认行为
+        else lastActivity = "NAV_FORWARD"; // 在范围列表的中间部分，聚焦不是主动用 `.focus()` 指定的，因此可以立即赋值，同时这里和下面的 NAV_BACKWARD 赋值时机也为了兼容测试工具，测试工具也许因为通过非原生方式触发事件，由于事件循环，将导致在 focusout 事件中触发退出列表
+        Promise.resolve(curListInfo.on?.({ e })).then(_ => {
+          if (rangeTailTarget != null) {
+            lastActivity = "NAV_FORWARD";
+            document.querySelector(rangeTailTarget).focus(); // 聚焦
+          }
+        });
+
       }
       if (isTabBackward(e)) {
-        lastActivity = "NAV_BACKWARD";
         const rangeHeadTarget = shiftTabPortal.get(selector);
-        if (rangeHeadTarget != null) {
-          document.querySelector(rangeHeadTarget).focus(); // 聚焦
-          e.preventDefault(); // 阻止默认行为
-        }
+        if (rangeHeadTarget != null) e.preventDefault();
+        else lastActivity = "NAV_BACKWARD";
+        Promise.resolve(curListInfo.on?.({ e })).then(_ => {
+          if (rangeHeadTarget != null) {
+            lastActivity = "NAV_BACKWARD";
+            document.querySelector(rangeHeadTarget).focus(); // 聚焦
+          }
+        });
       }
     }
   });
@@ -200,21 +227,25 @@ function focuz(config) {
     const entryFocusInfo = entriesFocusInfo.get(selector);
     const isEntry = entryFocusInfo != null;
     if (isEntry) {
-      const { delay, toggleEntry, target } = entryFocusInfo;
+      const { delay, toggleEntry, target, on } = entryFocusInfo;
       const listFocusInfo = listsFocusInfo.get(target);
-      const { entered } = listFocusInfo;
+      const { entered, onExit } = listFocusInfo;
       // 禁止事件入口
       if (entryFocusInfo.disableAuto) return;
       delayToProcessWithCondition(delay, () => {
         if (toggleEntry && entered) {
-          lastActivity = "SWITCH_ENTRY";
-          listFocusInfo.entered = false;
-          updateCurrentList(entryFocusInfo.parentList);
+          Promise.resolve(onExit?.({ e })).then(_ => {
+            lastActivity = "SWITCH_ENTRY";
+            listFocusInfo.entered = false;
+            updateCurrentList(entryFocusInfo.parentList);
+          });
         } else {
           if (lastActivity === "KEY_ENTRY") return; // 若是已通过 keydown 入口进入，则无需再从这里的 click 入口进入，打断
-          lastActivity = "CLICK_ENTRY";
-          focusByEntry(selector, e);
-          listFocusInfo.entered = true;
+          Promise.resolve(on?.({ e })).then(_ => {
+            lastActivity = "CLICK_ENTRY";
+            focusByEntry(selector);
+            listFocusInfo.entered = true;
+          });
         }
       });
     }
@@ -224,12 +255,14 @@ function focuz(config) {
       return exitFocusInfo != null;
     })();
     if (isExit) {
-      const { delay, disableAuto, list } = exitFocusInfo;
+      const { delay, disableAuto, list, on } = exitFocusInfo;
       // 禁止事件出口
       if (disableAuto) return;
       delayToProcessWithCondition(delay, () => {
-        lastActivity = "CLICK_EXIT";
-        focusByExit(selector, e, list);
+        Promise.resolve(on?.({ e })).then(_ => {
+          lastActivity = "CLICK_EXIT";
+          focusByExit(selector, list);
+        });
       });
     }
   });
@@ -247,10 +280,13 @@ function focuz(config) {
     const listHadItem = sequenceLists.find(li => li.includes(selector));
     const curListInfo = listsFocusInfo.get(listHadItem);
     if (curListInfo) {
-      const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo.lastFocusIdx, curListInfo.initFocusIdx, listHadItem.length);
-      lastActivity = "FOCUS_CORRECT";
-      document.querySelector(listHadItem[nextFocusIdx]).focus();
-      updateCurrentList(listHadItem);
+      const { lastFocusIdx, initFocusIdx, on } = curListInfo;
+      const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(lastFocusIdx, initFocusIdx, listHadItem.length);
+      Promise.resolve(on?.({ e, prevI: lastFocusIdx, curI: nextFocusIdx })).then(_ => {
+        lastActivity = "FOCUS_CORRECT";
+        document.querySelector(listHadItem[nextFocusIdx]).focus();
+        updateCurrentList(listHadItem);
+      });
       e.preventDefault();
     }
   });
@@ -288,10 +324,12 @@ function focuz(config) {
       // 失焦元素是列表元素，并且有 outlist 退出类型
       if (listInfo.outlistExit) {
 
-        const { parentList, entry, exitDelay } = listInfo;
+        const { parentList, entry, exitDelay, onExit } = listInfo;
         delayToProcessWithCondition(exitDelay, () => {
-          lastActivity = "LAYER_EXIT";
-          exitToTarget(parentList, entry, listInfo);
+          Promise.resolve(onExit?.({ e })).then(_ => {
+            lastActivity = "LAYER_EXIT";
+            exitToTarget(parentList, entry, listInfo);
+          });
         });
       } else if (isWild) updateCurrentList(null); // 若是列表禁止 outlist 退出类型，点击野区后，仍需置空 currentList
     }
@@ -465,8 +503,7 @@ function focuz(config) {
   }
 
   /** 通过入口进入列表 */
-  function focusByEntry(selector, e) {
-    e.preventDefault();
+  function focusByEntry(selector) {
     const { target: entryList } = entriesFocusInfo.get(selector);
     updateCurrentList(entryList);
     const curListInfo = listsFocusInfo.get(entryList);
@@ -476,8 +513,7 @@ function focuz(config) {
   }
 
   /** 通过出口返回至入口 */
-  function focusByExit(selector, e, list) {
-    e.preventDefault();
+  function focusByExit(selector, list) {
     const { parentList, target } = exitsFocusInfo.get(selector);
     const listFocusInfo = listsFocusInfo.get(list);
     exitToTarget(parentList, target, listFocusInfo);
@@ -602,7 +638,7 @@ function generateFocusData(obj) {
       const entries = arraify(entry).reduce(aryNodesReducer, []);
       const firstEntryNode = entries[0].node;
       const exits = arraify(exit).reduce(aryNodesReducer, []);
-      const { wrap: listWrapByConfig, initActive, range, next, prev } = isObj(list) ? list : {};
+      const { wrap: listWrapByConfig, initActive, range, next, prev, on: onList } = isObj(list) ? list : {};
       const listWrap = (() => {
         if (listWrapByConfig == null)
           return findLowestCommonAncestorNodeByList(pureList);
@@ -633,15 +669,15 @@ function generateFocusData(obj) {
       /** 记录作用在所有入口上的属性 */
       let entryGlobal = {};
       for(const entry of entries ) {
-        const { node, delay, toggle, manual, key } = entry;
+        const { node, delay, toggle, manual, key, on } = entry;
         if (node == null) {
-          entryGlobal = { delay, toggle, manual, key };
+          entryGlobal = { delay, toggle, manual, key, on };
           break;
         }
       }
-      entries.forEach(({ node, delay, toggle, manual, key }) => {
+      entries.forEach(({ node, delay, toggle, manual, key, on }) => {
         if (node == null) return ;
-        const { delay: gd, toggle: dt, manual: gm, key: gk } = entryGlobal
+        const { delay: gd, toggle: dt, manual: gm, key: gk, on: go } = entryGlobal
         entriesFocusInfo.set(node, {
           delay: delay == null ? gd : delay,
           toggleEntry: toggle == null ? dt : toggle, // 该入口是否同时支持退出？
@@ -649,25 +685,26 @@ function generateFocusData(obj) {
           disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的入口
           target: pureList, // 入口目标
           key: key || gk || isEnterEvent, // 从入口进入列表的按键
+          on: on || go,
         });
       });
       /** 记录作用在所有出口上的属性 */
       let exitGlobal = {};
       for(const exit of exits ) {
-        const { node, delay, manual, key } = exit;
+        const { node, delay, manual, key, on } = exit;
         if (node == null) {
-          exitGlobal = { delay, manual, key };
+          exitGlobal = { delay, manual, key, on };
           break;
         }
       }
       const exitsFocusInfo = isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo;
       let outlistExit = false;
       let escapeExit = false;
-      exits.forEach(({ node, delay, manual, outlist, esc, key }) => {
+      exits.forEach(({ node, delay, manual, outlist, esc, key, on }) => {
         if (outlist != null) outlistExit = outlist;
         if (esc != null) escapeExit = esc;
         if (node == null) return ;
-        const { delay: gd, manual: gm, key: gk } = exitGlobal;
+        const { delay: gd, manual: gm, key: gk, on: go } = exitGlobal;
         exitsFocusInfo.set(node, {
           delay: delay == null ? gd : delay,
           parentList,
@@ -675,6 +712,7 @@ function generateFocusData(obj) {
           disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的出口
           target: firstEntryNode, // 出口目标
           key: key || gk || isEnterEvent, // 从出口回到入口的按键
+          on: on || go,
         });
       });
       (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
@@ -690,8 +728,10 @@ function generateFocusData(obj) {
         disableAuto: exitGlobal.manual, // 是否关闭由事件触发的出口
         entered: enteredList, // 是否进入
         exitDelay: exitGlobal.delay,
+        onExit: exitGlobal.on,
         forwardKey: next || isTabForward,
         backwardKey: prev || isTabBackward,
+        on: onList, // 导航钩子，会在列表元素获得焦点之前触发
       });
       if (listWrap != null)
         (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
