@@ -482,7 +482,7 @@ function focuz(config) {
             };
           }
           // 更新其它列表
-          const listFocusInfo = hotListsFocusInfo.get(hotListWrapInfo.get(nextWrap));
+          const listFocusInfo = hotListsFocusInfo.get(hotListWrapInfo.get(nextWrap)) || {};
           const {
             lastFocusIdx,
             entered,
@@ -811,7 +811,7 @@ function travelConfig(obj, onConfigObject, parentList, isHotConfig) {
   onConfigObject(obj, pureList, parentList, lastChildEntry, hotConfig);
 
   subAry.forEach(subItem =>
-    travelConfig(subItem, onConfigObject, pureList, isHotConfig));
+    travelConfig(subItem, onConfigObject, pureList, hotConfig));
 
   /** 获取一个入口 */
   function getEntry(entry) {
