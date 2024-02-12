@@ -12,6 +12,8 @@
 
   <body>
 
+  <h1>focuz Demo</h1>
+  <h2>Stairs</h2>
     <div id="app" tabindex="-1">
       <button id="en1">entry</button>
       <div id="li1" tabindex="-1">
@@ -65,9 +67,33 @@
 
     <div data-testid="above-ocean" tabindex="-1" style="background: skyblue; color: white;">Above Ocean</div>
 
+    <h2>Modal</h2>
+    <div id="modal">
+      <button id="modal-g">generate modal</button>
+      <div id="modal-root"></div>
+    </div>
+
+    <h2>Dynamic Nested List</h2>
+    <div id="dynamic-list">
+      <button id="d-l-entry">d-list entry</button>
+      <div id="d-list-wrap" class="d-list-wrap" tabindex="-1">
+        <div id="d-list-items-wrap" tabindex="-1">
+          <div id="d-list-item1" class="d-list-item">
+            <button id="d-list-item1-entry">d-list1 item entry</button>
+            <div id="item1-content" tabindex="-1">
+              <button id="d-list-item1-content-b1">dlic btn1</button>
+              <button id="d-list-item1-content-b2">dlic btn2</button>
+            </div>
+          </div>
+        </div>
+        <button id="list-more">more</button>
+      </div>
+    </div>
   </body>
   <script src="index.js"></script>
-  <script src="./focus.js"></script>
-  <script src="./focus-manual.js"></script>
-  <script src="./dynamic-more.js"></script>
+  <script src="stairs/index.js"></script>
+  <script src="stairs/focus-manual.js"></script>
+  <script src="stairs/dynamic-more.js"></script>
+  <script src="modal.js"></script>
+  <script src="dynamic-nested.js"></script>
 </html>

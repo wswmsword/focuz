@@ -32,3 +32,13 @@ button:focus {
   margin: 6px;
   position: relative;
 }
+
+.d-list-wrap {
+  display: flex;
+}
+
+.d-list-item {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid salmon;
+}
