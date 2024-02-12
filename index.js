@@ -601,7 +601,7 @@ function generateFocusData(obj) {
   const coldSequenceLists = [];
   let hotSequenceLists = [];
   let firstEntry = null;
-  const hotConfigInfo = new Map();
+  let hotConfigInfo = new Map();
 
   travelConfig(obj, onConfigObject());
 
@@ -744,6 +744,7 @@ function generateFocusData(obj) {
       if (isHotConfig && id) {
         hotConfigInfo.set(id, {
           parentList,
+          config: obj,
         });
       }
     }
@@ -774,12 +775,14 @@ function generateFocusData(obj) {
   /** 更新指定 id 的配置 */
   function updateHotConfig(id, config, updateCurrentList) {
     const updateCurrentListByWrap = updateCurrentList(hotListsFocusInfo, hotListWrapInfo); // 这里传入的入参为引用，因此后方的值设为 new Map() 将不影响函数内取得原引用
+    const { parentList, config: cacheConfig } = hotConfigInfo.get(id);
     // 动态热数据置空
     hotTabPortal = new Map(); hotShiftTabPortal = new Map(); hotEntriesFocusInfo = new Map();
     hotExitsFocusInfo = new Map(); hotListsFocusInfo = new Map(); hotListWrapInfo = new Map();
     hotSequenceLists = [];
-    const { parentList } = hotConfigInfo.get(id);
-    travelConfig(config, onConfigObject(updateCurrentListByWrap), parentList, true);
+    hotConfigInfo = new Map();
+    const newConfig = isObj(config) ? config : config(cacheConfig);
+    travelConfig(newConfig, onConfigObject(updateCurrentListByWrap), parentList, true);
 
     // [原合并数据, 新合并数据]
     const newSequenceLists = coldSequenceLists.concat(hotSequenceLists);
