@@ -741,7 +741,7 @@ function generateFocusData(obj) {
       });
       if (listWrap != null)
         (isHotConfig ? hotListWrapInfo : coldListWrapInfo).set(listWrap, pureList);
-      if (isHotConfig) {
+      if (isHotConfig && id) {
         hotConfigInfo.set(id, {
           parentList,
         });
