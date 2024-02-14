@@ -187,7 +187,6 @@ function focuz(config) {
           lastActivity = "NAV_FORWARD";
           focusNext(nextFocusIdx);
         });
-        e.preventDefault(); // 阻止默认行为
       }
       else if (backwardKey(e)) {
         const nextFocusIdx = (lastFocusIdx - 1 + itemsLen) % itemsLen;
@@ -195,8 +194,10 @@ function focuz(config) {
           lastActivity = "NAV_BACKWARD";
           focusNext(nextFocusIdx);
         });
-        e.preventDefault(); // 阻止默认行为
       }
+
+      if (isTabBackward(e) || isTabForward(e))
+        e.preventDefault(); // 阻止 tab 默认行为，因为序列模式的导航都是指定的，而非默认行为
 
       /** 聚焦下一个元素 */
       function focusNext(nextFocusIdx) {
