@@ -660,7 +660,7 @@ function generateFocusData(obj) {
     return function(obj, pureList, parentList, lastChildEntry, isHotConfig) {
       const { entry, exit, list, id } = obj;
       const entries = arraify(entry).reduce(aryNodesReducer, []);
-      const firstEntryNode = entries[0].node;
+      let oneEntryNode = null;
       const exits = arraify(exit).reduce(aryNodesReducer, []);
       const { wrap: listWrapByConfig, initActive, range, next, prev, on: onList } = isObj(list) ? list : {};
 
@@ -673,7 +673,7 @@ function generateFocusData(obj) {
         if (node == null) {
           entryGlobal = { delay, toggle, manual, key, on };
           break;
-        }
+        } else oneEntryNode = node;
       }
 
       const listWrap = (() => {
@@ -687,6 +687,7 @@ function generateFocusData(obj) {
       // 若是不能找到包裹，则先推入队列，后续触发入口或出口时再寻找
       if (listWrap == null) delayWrapList.push(pureList);
       else if (coverEntry === true) coverEntry = listWrap;
+      if (oneEntryNode == null) oneEntryNode = coverEntry;
       let lastFocusIdxFromHotList = -1;
       let enteredList = false;
       if (updateHotCurrentList && listWrap != null) {
@@ -705,7 +706,7 @@ function generateFocusData(obj) {
         (isHotConfig ? hotShiftTabPortal : coldShiftTabPortal).set(head, tail);
       } else
         (isHotConfig ? hotSequenceLists : coldSequenceLists).push(pureList);
-      if (firstEntry == null) firstEntry = firstEntryNode;
+      if (firstEntry == null) firstEntry = oneEntryNode;
       const entriesFocusInfo = isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo;
 
       const immediateCoverEntry = coverEntry != null && coverEntry !== true;
@@ -747,7 +748,7 @@ function generateFocusData(obj) {
           parentList,
           list: pureList,
           disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的出口
-          target: firstEntryNode, // 出口目标
+          target: oneEntryNode, // 出口目标
           key: key || gk || isEnterEvent, // 从出口回到入口的按键
           on: on || go,
         });
@@ -758,7 +759,7 @@ function generateFocusData(obj) {
         outlistExit, // 蒙层出口
         escExit: escapeExit, // 是否存在 esc 出口
         parentList,
-        entry: firstEntryNode, // 进入该列表的入口
+        entry: oneEntryNode, // 进入该列表的入口
         lastChildEntry, // 该列表中进入最后一个子列表的入口
         wrap: listWrap,
         range: isRangeMode,
