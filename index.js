@@ -526,7 +526,7 @@ function focuz(config) {
     const curListInfo = listsFocusInfo.get(entryList);
     const nextIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(curListInfo?.lastFocusIdx, curListInfo?.initFocusIdx, entryList.length);
     document.querySelector(entryList[nextIdx]).focus();
-    updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo);
+    updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
   }
 
   /** 通过出口返回至入口 */
@@ -546,7 +546,6 @@ function focuz(config) {
     const isRoot = parentList == null;
     const exitTarget = isRoot ? entry : (() => {
       const parentListInfo = listsFocusInfo.get(parentList);
-      console.log(parentListInfo)
       const { lastFocusIdx } = parentListInfo;
       const exitTarget = lastFocusIdx < 0 ? entry : parentList[lastFocusIdx];
       return exitTarget;
@@ -554,7 +553,7 @@ function focuz(config) {
     document.querySelector(exitTarget).focus();
     updateCurrentList(parentList); // 即将落入的列表是当前列表的父列表
     listFocusInfo.entered = false;
-    updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo);
+    updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
   }
 
   /** 更新配置数据中列表的 wrap */
@@ -566,8 +565,11 @@ function focuz(config) {
         removeIdx.push(i);
         listsFocusInfo.get(list).wrap = wrap;
         listWrapInfo.set(wrap, list);
-        entriesFocusInfo.set(wrap, delayCoverEntriesInfo.get(list));
-        delayCoverEntriesInfo.delete(list);
+        const delayCoverEntryInfo = delayCoverEntriesInfo.get(list);
+        if (delayCoverEntryInfo != null) {
+          entriesFocusInfo.set(wrap, delayCoverEntryInfo);
+          delayCoverEntriesInfo.delete(list);
+        }
       }
     });
     removeIdx.forEach(i => delayWrapList.splice(i, 1));
