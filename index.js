@@ -16,6 +16,8 @@ const entryFocusActivity = ["KEY_ENTRY", "SWITCH_ENTRY", "CLICK_ENTRY", "INVOKE_
 const exitFocusActivity = ["ESC_EXIT", "KEY_EXIT", "CLICK_EXIT", "INVOKE_EXIT", "LAYER_EXIT"];
 /** 列表相关的焦点活动 */
 const listFocusActivity = ["FOCUS_PROTECT", "FOCUS_CORRECT", "NAV_FORWARD", "NAV_BACKWARD", "AIRBORNE_MOUSE", "UPDATE_LIST"];
+/** 其它焦点活动 */
+const othersActivity = ["LEFT_APP"];
 
 /** 焦点天空 */
 function focuz(config) {
@@ -281,7 +283,7 @@ function focuz(config) {
   rootEle.addEventListener("focusin", function(e) {
     prevNullBeforeFocusin = false; // 置空，用于首次进入内部的时候，首次进入不会经过 focusout
     // 没有意图的聚焦，则进行矫正；诸如触发入口、出口、列表导航的聚焦，都是有意图的。
-    if (entryFocusActivity.concat(exitFocusActivity).concat(listFocusActivity).includes(lastActivity)) {
+    if (entryFocusActivity.concat(exitFocusActivity, listFocusActivity, othersActivity).includes(lastActivity)) {
       lastActivity = null;
       return ;
     }
@@ -303,14 +305,15 @@ function focuz(config) {
   });
 
   rootEle.addEventListener("focusout", function(e) {
-    // 标签页处于非激活状态而失焦，则不做处理
-    if (!document.hasFocus()) return ;
+    // 标签页处于非激活状态而失焦，则不做处理；同时标记 LEFT_APP，以避免从其它地方回到区域的时候触发 focusin 的内容
+    if (!document.hasFocus())
+      return lastActivity = "LEFT_APP"
     // 用于保护可切换的入口（开关，同时作为出口的入口）能够被触发；也可用 relatedTarget 判断，但 relatedTarget 不兼容 Safari（23.09.08）
     if (triggeredToggleByMouse)
       return triggeredToggleByMouse = false;
 
     if (lastActivity !== "AIRBORNE_MOUSE" && // 可能会在非 rootEle 处触发 AIRBORNE_MOUSE，因此需要单独利用 setTimeout 事件循环
-      entryFocusActivity.concat(exitFocusActivity).concat(listFocusActivity).includes(lastActivity)) {
+      entryFocusActivity.concat(exitFocusActivity, listFocusActivity).includes(lastActivity)) {
       return ; // 即将进入 focusin，因此不清空 lastActivity
     }
 
