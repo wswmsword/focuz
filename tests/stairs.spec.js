@@ -261,7 +261,7 @@ test.describe("Pressing Keyboard On Stair Buttons", () => {
     await esc(page); // up
     await expect(page.getByRole("button", { name: "li3.1(left entry)", exact: true })).toBeFocused();
     await esc(page); // up
-    await expect(page.getByRole("button", { name: "li2.3(entry)", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "li2.4(entry 2)", exact: true })).toBeFocused();
     await esc(page); // up
     await expect(page.getByRole("button", { name: "li1.3(entry)", exact: true })).toBeFocused();
     await esc(page); // up
