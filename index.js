@@ -29,6 +29,7 @@ function focuz(config) {
     firstEntry,
     updateHotConfig,
     delayWrapList,
+    delayCoverEntriesInfo,
   } = resolveFocusConfig(config);
 
   const rootEle = document.querySelector(root);
@@ -141,17 +142,27 @@ function focuz(config) {
     // 焦点保护
     if (focusedListWrap) {
       if (isTabBackward(e)) {
-        const curListInfo = listsFocusInfo.get(currentList);
-        const { lastFocusIdx, initFocusIdx, range, on } = curListInfo;
-        const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(lastFocusIdx, initFocusIdx, currentList.length);
-        const nextFocus = range ? currentList.at(-1) : currentList[nextFocusIdx];
-        const nextFocusEle = document.querySelector(nextFocus);
-        Promise.resolve(on?.({ e, prevI: lastFocusIdx, curI: nextFocusIdx })).then(_ => {
-          lastActivity = "FOCUS_PROTECT";
-          nextFocusEle.focus();
-        });
-        e.preventDefault(); // 阻止默认行为
-        return ;
+        let needProtect = !isEntry;
+        // 如果当前是封面入口，则检查是否已进入该封面所在的列表，如果已进入，则需要保护焦点
+        if (isEntry) {
+          const listInfo = listsFocusInfo.get(entryFocusInfo.target);
+          if (listInfo.entered)
+            needProtect = true;
+        }
+
+        if (needProtect) {
+          const curListInfo = listsFocusInfo.get(currentList);
+          const { lastFocusIdx, initFocusIdx, range, on } = curListInfo;
+          const nextFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(lastFocusIdx, initFocusIdx, currentList.length);
+          const nextFocus = range ? currentList.at(-1) : currentList[nextFocusIdx];
+          const nextFocusEle = document.querySelector(nextFocus);
+          Promise.resolve(on?.({ e, prevI: lastFocusIdx, curI: nextFocusIdx })).then(_ => {
+            lastActivity = "FOCUS_PROTECT";
+            nextFocusEle.focus();
+          });
+          e.preventDefault(); // 阻止默认行为
+          return ;
+        }
       }
     }
 
@@ -446,7 +457,7 @@ function focuz(config) {
           const nextIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(parentListInfo?.lastFocusIdx, parentListInfo?.initFocusIdx, parentList.length);
           lastActivity = "INVOKE_EXIT";
           document.querySelector(parentList[nextIdx]).focus();
-          updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo);
+          updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
           updateCurrentList(parentList);
         }
       }
@@ -535,6 +546,7 @@ function focuz(config) {
     const isRoot = parentList == null;
     const exitTarget = isRoot ? entry : (() => {
       const parentListInfo = listsFocusInfo.get(parentList);
+      console.log(parentListInfo)
       const { lastFocusIdx } = parentListInfo;
       const exitTarget = lastFocusIdx < 0 ? entry : parentList[lastFocusIdx];
       return exitTarget;
@@ -546,7 +558,7 @@ function focuz(config) {
   }
 
   /** 更新配置数据中列表的 wrap */
-  function updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo) {
+  function updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo) {
     const removeIdx = [];
     delayWrapList.forEach((list, i) => {
       const wrap = findLowestCommonAncestorNodeByList(list);
@@ -554,6 +566,8 @@ function focuz(config) {
         removeIdx.push(i);
         listsFocusInfo.get(list).wrap = wrap;
         listWrapInfo.set(wrap, list);
+        entriesFocusInfo.set(wrap, delayCoverEntriesInfo.get(list));
+        delayCoverEntriesInfo.delete(list);
       }
     });
     removeIdx.forEach(i => delayWrapList.splice(i, 1));
@@ -598,6 +612,8 @@ function generateFocusData(obj) {
   ] = new Array(6).fill().map(() => new Map());
   /** 需要延迟计算 wrap 的列表，这些列表虽然已在配置中，但实际浏览器中还未展示 */
   const delayWrapList = [];
+  /** 需要延迟计算的封面入口的信息 */
+  const delayCoverEntriesInfo = new Map();
   const coldSequenceLists = [];
   let hotSequenceLists = [];
   let firstEntry = null;
@@ -635,6 +651,8 @@ function generateFocusData(obj) {
     updateHotConfig,
     /** 需要延迟获取包裹的列表 */
     delayWrapList,
+    /** 需要延迟获取封面的封面入口信息 */
+    delayCoverEntriesInfo,
   };
 
   /** 遍历到配置的对象时执行 */
@@ -645,13 +663,30 @@ function generateFocusData(obj) {
       const firstEntryNode = entries[0].node;
       const exits = arraify(exit).reduce(aryNodesReducer, []);
       const { wrap: listWrapByConfig, initActive, range, next, prev, on: onList } = isObj(list) ? list : {};
+
+      /** 记录作用在所有入口上的属性 */
+      let entryGlobal = {};
+      let coverEntry;
+      for(const entry of entries) {
+        const { node, delay, toggle, manual, key, on, cover } = entry;
+        if (cover != null) coverEntry = cover;
+        if (node == null) {
+          entryGlobal = { delay, toggle, manual, key, on };
+          break;
+        }
+      }
+
       const listWrap = (() => {
-        if (listWrapByConfig == null)
+        if (listWrapByConfig == null) {
+          const coverEntryRes = coverEntry === true ? null : coverEntry;
+          if (coverEntryRes != null) return coverEntryRes;
           return findLowestCommonAncestorNodeByList(pureList);
+        }
         return listWrapByConfig;
       })();
       // 若是不能找到包裹，则先推入队列，后续触发入口或出口时再寻找
       if (listWrap == null) delayWrapList.push(pureList);
+      else if (coverEntry === true) coverEntry = listWrap;
       let lastFocusIdxFromHotList = -1;
       let enteredList = false;
       if (updateHotCurrentList && listWrap != null) {
@@ -672,19 +707,12 @@ function generateFocusData(obj) {
         (isHotConfig ? hotSequenceLists : coldSequenceLists).push(pureList);
       if (firstEntry == null) firstEntry = firstEntryNode;
       const entriesFocusInfo = isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo;
-      /** 记录作用在所有入口上的属性 */
-      let entryGlobal = {};
-      for(const entry of entries ) {
-        const { node, delay, toggle, manual, key, on } = entry;
-        if (node == null) {
-          entryGlobal = { delay, toggle, manual, key, on };
-          break;
-        }
-      }
-      entries.forEach(({ node, delay, toggle, manual, key, on }) => {
-        if (node == null) return ;
+
+      const immediateCoverEntry = coverEntry != null && coverEntry !== true;
+      entries.forEach(({ node, delay, toggle, manual, key, on, cover }) => {
+        if (node == null && cover == null) return ;
         const { delay: gd, toggle: dt, manual: gm, key: gk, on: go } = entryGlobal
-        entriesFocusInfo.set(node, {
+        const info = {
           delay: delay == null ? gd : delay,
           toggleEntry: toggle == null ? dt : toggle, // 该入口是否同时支持退出？
           parentList,
@@ -692,11 +720,14 @@ function generateFocusData(obj) {
           target: pureList, // 入口目标
           key: key || gk || isEnterEvent, // 从入口进入列表的按键
           on: on || go,
-        });
+        };
+        if (node) entriesFocusInfo.set(node, info);
+        if (immediateCoverEntry) entriesFocusInfo.set(coverEntry, info);
+        else if (coverEntry === true) delayCoverEntriesInfo.set(pureList, info);
       });
       /** 记录作用在所有出口上的属性 */
       let exitGlobal = {};
-      for(const exit of exits ) {
+      for(const exit of exits) {
         const { node, delay, manual, key, on } = exit;
         if (node == null) {
           exitGlobal = { delay, manual, key, on };
