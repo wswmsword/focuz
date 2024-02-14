@@ -133,7 +133,7 @@ test.describe("Clicking Stair Buttons", () => {
     await aboveOcean.click();
     await expect(page.getByRole("button", { name: "li4.3(entry)", exact: true })).toBeFocused();
     await aboveOcean.click();
-    await expect(page.getByRole("button", { name: "li3.1(left entry)", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "li3.3(right entry)", exact: true })).toBeFocused();
     await aboveOcean.click();
     await expect(aboveOcean).toBeFocused();
   });
@@ -259,11 +259,11 @@ test.describe("Pressing Keyboard On Stair Buttons", () => {
     await esc(page); // up
     await expect(page.getByRole("button", { name: "li4.3(entry)", exact: true })).toBeFocused();
     await esc(page); // up
-    await expect(page.getByRole("button", { name: "li3.1(left entry)", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "li3.3(right entry)", exact: true })).toBeFocused();
     await esc(page); // up
     await expect(page.getByRole("button", { name: "li2.4(entry 2)", exact: true })).toBeFocused();
     await esc(page); // up
-    await expect(page.getByRole("button", { name: "li1.3(entry)", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "li1.2(exit)", exact: true })).toBeFocused();
     await esc(page); // up
     await expect(page.getByRole("button", { name: "entry", exact: true })).toBeFocused();
     await esc(page); // sky

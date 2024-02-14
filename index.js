@@ -546,8 +546,8 @@ function focuz(config) {
     const isRoot = parentList == null;
     const exitTarget = isRoot ? entry : (() => {
       const parentListInfo = listsFocusInfo.get(parentList);
-      const { lastFocusIdx } = parentListInfo;
-      const exitTarget = lastFocusIdx < 0 ? entry : parentList[lastFocusIdx];
+      const { lastFocusIdx, initFocusIdx } = parentListInfo;
+      const exitTarget = lastFocusIdx < 0 ? initFocusIdx == null ? entry : parentList[initFocusIdx] : parentList[lastFocusIdx];
       return exitTarget;
     })();
     document.querySelector(exitTarget).focus();
