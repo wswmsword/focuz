@@ -806,7 +806,7 @@ function generateFocusData(obj) {
 
     /** 数组化入参 */
     function arraify(v) {
-      return (isStr(v) ? [v] : Array.isArray(v) ? v : [v]);
+      return (isStr(v) ? [v] : Array.isArray(v) ? v : [v]).filter(v => v != null);
     }
   }
 
