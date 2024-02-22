@@ -281,6 +281,7 @@ function focuz(config) {
     }
   });
 
+  // 主要用于焦点矫正
   rootEle.addEventListener("focusin", function(e) {
     prevNullBeforeFocusin = false; // 置空，用于首次进入内部的时候，首次进入不会经过 focusout
     // 没有意图的聚焦，则进行矫正；诸如触发入口、出口、列表导航的聚焦，都是有意图的。
@@ -305,6 +306,7 @@ function focuz(config) {
     }
   });
 
+  // 主要用于 outlist 出口
   rootEle.addEventListener("focusout", function(e) {
     // 标签页处于非激活状态而失焦，则不做处理；同时标记 LEFT_APP，以避免从其它地方回到区域的时候触发 focusin 的内容
     if (!document.hasFocus())
@@ -356,8 +358,10 @@ function focuz(config) {
     const selector = '#' + targetId;
     // 重复 mousedown 在同一元素上，则忽略重复的
     if (targetId !== '' && targetId === document.activeElement.id) return ;
-    // 1. 首先通过 wrap 确定列表，此时最期望用户点击非列表元素的空白区域
+    // 通过 wrap 确定列表，此时最期望用户点击非列表元素的空白区域
     let wrappedList = listWrapInfo.get(selector);
+    const isEntryWrap = !!entriesFocusInfo.get(selector);
+    if (isEntryWrap) wrappedList = null; // 若是入口，则不算进入，因此置空
     /** 是否是序列模式的列表 */
     let isSequenceList = false;
     if (wrappedList == null) { // 点到了列表元素，或是范围模式的区域
@@ -366,23 +370,14 @@ function focuz(config) {
         const parentSelector = '#' + (curElement || {}).id;
         wrappedList = listWrapInfo.get(parentSelector);
         if (wrappedList != null) {
-          isSequenceList = !listsFocusInfo.get(wrappedList).range;
-          focusedListItem(); // 由于范围模式不支持焦点矫正，因此这里包容由范围模式触发的情况
-          break;
+          const isEntryWrap = !!entriesFocusInfo.get(parentSelector);
+          if (!isEntryWrap) {
+            isSequenceList = !listsFocusInfo.get(wrappedList).range;
+            focusedListItem(); // 由于范围模式不支持焦点矫正，因此这里包容由范围模式触发的情况
+            break;
+          }
         }
         if (parentSelector === root) break; // 向上检查的最深深度为配置的根元素
-      }
-    }
-
-    // 2. 若无 wrap，则通过列表元素确定列表，这种情况则不再能够判断范围模式的列表
-    if (wrappedList == null) {
-      /** 包含当前元素的列表 */
-      const listHadItem = sequenceLists.find(li => li.includes(selector));
-      /** 是否是列表的元素 */
-      isSequenceList = listHadItem != null;
-      if (isSequenceList) { // 序列模式，范围模式不确定，因此不考虑
-        wrappedList = listHadItem;
-        focusedListItem();
       }
     }
 
