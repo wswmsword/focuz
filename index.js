@@ -371,7 +371,8 @@ function focuz(config) {
         wrappedList = listWrapInfo.get(parentSelector);
         if (wrappedList != null) {
           const isEntryWrap = !!entriesFocusInfo.get(parentSelector);
-          if (!isEntryWrap) {
+          if (!isEntryWrap || // 封面不是入口
+            (isEntryWrap && wrappedList.includes(selector))) { // 如果封面是入口，则判断当前焦点是否是列表的一个元素
             isSequenceList = !listsFocusInfo.get(wrappedList).range;
             focusedListItem(); // 由于范围模式不支持焦点矫正，因此这里包容由范围模式触发的情况
             break;
