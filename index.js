@@ -550,10 +550,12 @@ function focuz(config) {
       const exitTarget = lastFocusIdx < 0 ? initFocusIdx == null ? entry : parentList[initFocusIdx] : parentList[lastFocusIdx];
       return exitTarget;
     })();
-    document.querySelector(exitTarget).focus();
-    updateCurrentList(parentList); // 即将落入的列表是当前列表的父列表
-    listFocusInfo.entered = false;
-    updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
+    if (exitTarget) { // 若是没有向退出目标的焦点转移，则无需更新和退出有关的各状态
+      document.querySelector(exitTarget).focus();
+      updateCurrentList(parentList); // 即将落入的列表是当前列表的父列表
+      listFocusInfo.entered = false;
+      updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
+    }
   }
 
   /** 更新配置数据中列表的 wrap */
