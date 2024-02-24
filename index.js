@@ -13,7 +13,7 @@ import {
 /** 入口相关的焦点活动 */
 const entryFocusActivity = ["KEY_ENTRY", "SWITCH_ENTRY", "CLICK_ENTRY", "INVOKE_ENTRY"];
 /** 出口相关的焦点活动 */
-const exitFocusActivity = ["ESC_EXIT", "KEY_EXIT", "CLICK_EXIT", "INVOKE_EXIT", "LAYER_EXIT"];
+const exitFocusActivity = ["ESC_EXIT", "KEY_EXIT", "CLICK_EXIT", "INVOKE_EXIT", "LAYER_EXIT", "TAB_CREEK"];
 /** 列表相关的焦点活动 */
 const listFocusActivity = ["FOCUS_PROTECT", "FOCUS_CORRECT", "NAV_FORWARD", "NAV_BACKWARD", "AIRBORNE_MOUSE", "UPDATE_LIST"];
 /** 其它焦点活动 */
@@ -42,6 +42,8 @@ function focuz(config) {
   let currentList = null;
   /** 最后一次活动名称 */
   let lastActivity = null;
+  /** 完成 tab 溯溪出口需要几步，将会被用在 focusout 和 focusin 中 */
+  let tabCreekSteps = 0;
   /** mousedown 更新 currentList 之前的 currentList */
   let prevActiveListByMousedown = null;
   /** 内部触发了 outlist 出口 */
@@ -178,25 +180,73 @@ function focuz(config) {
     // 当前在列表（列表为序列模式）
     if (isSequenceList) {
       const itemsLen = currentList.length;
-      const { lastFocusIdx: _lfi, initFocusIdx, forwardKey, backwardKey, on } = curListInfo;
+      const { lastFocusIdx: _lfi, initFocusIdx, forwardKey, backwardKey, on, onExit } = curListInfo;
       const lastFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(_lfi, initFocusIdx, itemsLen);
+      let isCreekExit = false; // 溯溪出口吗
       if (forwardKey(e)) {
         /** 下一个聚焦元素的 id */
         const nextFocusIdx = (lastFocusIdx + (isSequenceListItem ? 1 : 0)) % itemsLen;
-        Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
-          lastActivity = "NAV_FORWARD";
-          focusNext(nextFocusIdx);
-        });
+        const tabForward = isTabForward(e); // 是否通过 tab 前进
+        // 溯溪到列表最后一个元素之后
+        if (curListInfo.tabCreekExit &&
+          ((tabForward && nextFocusIdx === 0) || // 在尾巴生效
+            !tabForward)) { // 在任何位置生效
+          isCreekExit = true;
+          lastActivity = "TAB_CREEK";
+          // 获取最后一个元素
+          const lastE = document.querySelector(curListInfo.wrap).lastElementChild;
+          const isActiveLastE = lastE === document.activeElement;
+          tabCreekSteps = isActiveLastE ? 1 : 3; // 若已聚焦，则只需一步，即 focusout；否则要 focusout（当前元素）-> focusin（尾巴）-> focusout（尾巴）
+          const originTabI = lastE.getAttribute("tabindex");
+          // 设置最后一个元素 tabindex
+          if (originTabI == null)
+            lastE.tabIndex = 0;
+          // 聚焦
+          lastE.focus();
+          updateCurrentList(null);
+          curListInfo.entered = false;
+          updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
+          onExit?.({ e });
+          // 下个事件循环删除添加的用于临时聚焦的 tabindex
+          setTimeout(() => {
+            if (originTabI == null)
+              lastE.removeAttribute("tabindex");
+          }, 0);
+        } else {
+          Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
+            lastActivity = "NAV_FORWARD";
+            focusNext(nextFocusIdx);
+          });
+        }
       }
       else if (backwardKey(e)) {
         const nextFocusIdx = (lastFocusIdx - 1 + itemsLen) % itemsLen;
-        Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
-          lastActivity = "NAV_BACKWARD";
-          focusNext(nextFocusIdx);
-        });
+        const tabBackward = isTabBackward(e); // 是否通过 tab 后退
+        // 溯溪到列表头部元素前面
+        if (curListInfo.tabCreekExit &&
+          ((tabBackward && nextFocusIdx === itemsLen - 1) || // 在头部生效
+            !tabBackward)) { // 在任何位置生效
+          isCreekExit = true;
+          lastActivity = "TAB_CREEK";
+          // 获取第一个元素
+          const firstE = document.querySelector(curListInfo.wrap);
+          const isActiveLastE = firstE === document.activeElement;
+          tabCreekSteps = isActiveLastE ? 1 : 3; // 若已聚焦，则只需一步，即 focusout；否则要 focusout（当前元素）-> focusin（尾巴）-> focusout（尾巴）
+          // 聚焦
+          firstE.focus();
+          updateCurrentList(null);
+          curListInfo.entered = false;
+          updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
+          onExit?.({ e });
+        } else {
+          Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
+            lastActivity = "NAV_BACKWARD";
+            focusNext(nextFocusIdx);
+          });
+        }
       }
 
-      if (isTabBackward(e) || isTabForward(e))
+      if (!isCreekExit && (isTabBackward(e) || isTabForward(e)))
         e.preventDefault(); // 阻止 tab 默认行为，因为序列模式的导航都是指定的，而非默认行为
 
       /** 聚焦下一个元素 */
@@ -285,6 +335,10 @@ function focuz(config) {
   rootEle.addEventListener("focusin", function(e) {
     prevNullBeforeFocusin = false; // 置空，用于首次进入内部的时候，首次进入不会经过 focusout
     // 没有意图的聚焦，则进行矫正；诸如触发入口、出口、列表导航的聚焦，都是有意图的。
+    if (lastActivity === "TAB_CREEK") { // TAB_CREEK 特殊，将在 focusout 中置空
+      --tabCreekSteps;
+      return ;
+    }
     if (entryFocusActivity.concat(exitFocusActivity, listFocusActivity, othersActivity).includes(lastActivity)) {
       lastActivity = null;
       return ;
@@ -314,6 +368,15 @@ function focuz(config) {
     // 用于保护可切换的入口（开关，同时作为出口的入口）能够被触发；也可用 relatedTarget 判断，但 relatedTarget 不兼容 Safari（23.09.08）
     if (triggeredToggleByMouse)
       return triggeredToggleByMouse = false;
+
+    // tab 溯溪出口可能会多次访问 focusout，依据步数来判断是否结束溯溪
+    if (lastActivity === "TAB_CREEK") {
+      --tabCreekSteps;
+      if (tabCreekSteps < 1) { // 当步数为 0 时，溯溪结束
+        lastActivity = null;
+        return ;
+      }
+    }
 
     if (lastActivity !== "AIRBORNE_MOUSE" && // 可能会在非 rootEle 处触发 AIRBORNE_MOUSE，因此需要单独利用 setTimeout 事件循环
       entryFocusActivity.concat(exitFocusActivity, listFocusActivity).includes(lastActivity)) {
@@ -742,9 +805,11 @@ function generateFocusData(obj) {
       const exitsFocusInfo = isHotConfig ? hotExitsFocusInfo : coldExitsFocusInfo;
       let outlistExit = false;
       let escapeExit = false;
-      exits.forEach(({ node, delay, manual, outlist, esc, key, on }) => {
+      let tabCreekExit = false;
+      exits.forEach(({ node, delay, manual, outlist, esc, key, on, tabCreek }) => {
         if (outlist != null) outlistExit = outlist;
         if (esc != null) escapeExit = esc;
+        if (tabCreek != null) tabCreekExit = tabCreek;
         if (node == null) return ;
         const { delay: gd, manual: gm, key: gk, on: go } = exitGlobal;
         exitsFocusInfo.set(node, {
@@ -762,6 +827,7 @@ function generateFocusData(obj) {
         lastFocusIdx: Math.max(-1, lastFocusIdxFromHotList || -1), // 最后一次聚焦的 id
         outlistExit, // 蒙层出口
         escExit: escapeExit, // 是否存在 esc 出口
+        tabCreekExit, // tab 溯溪出口
         parentList,
         entry: oneEntryNode, // 进入该列表的入口
         lastChildEntry, // 该列表中进入最后一个子列表的入口
