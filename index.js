@@ -191,27 +191,7 @@ function focuz(config) {
         if (curListInfo.tabCreekExit &&
           ((tabForward && nextFocusIdx === 0) || // 在尾巴生效
             !tabForward)) { // 在任何位置生效
-          isCreekExit = true;
-          lastActivity = "TAB_CREEK";
-          // 获取最后一个元素
-          const lastE = document.querySelector(curListInfo.wrap).lastElementChild;
-          const isActiveLastE = lastE === document.activeElement;
-          tabCreekSteps = isActiveLastE ? 1 : 3; // 若已聚焦，则只需一步，即 focusout；否则要 focusout（当前元素）-> focusin（尾巴）-> focusout（尾巴）
-          const originTabI = lastE.getAttribute("tabindex");
-          // 设置最后一个元素 tabindex
-          if (originTabI == null)
-            lastE.tabIndex = 0;
-          // 聚焦
-          lastE.focus();
-          updateCurrentList(null);
-          curListInfo.entered = false;
-          updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
-          onExit?.({ e });
-          // 下个事件循环删除添加的用于临时聚焦的 tabindex
-          setTimeout(() => {
-            if (originTabI == null)
-              lastE.removeAttribute("tabindex");
-          }, 0);
+          forwardTabCreek(onExit, () => isCreekExit = true);
         } else {
           Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
             lastActivity = "NAV_FORWARD";
@@ -226,18 +206,7 @@ function focuz(config) {
         if (curListInfo.tabCreekExit &&
           ((tabBackward && nextFocusIdx === itemsLen - 1) || // 在头部生效
             !tabBackward)) { // 在任何位置生效
-          isCreekExit = true;
-          lastActivity = "TAB_CREEK";
-          // 获取第一个元素
-          const firstE = document.querySelector(curListInfo.wrap);
-          const isActiveLastE = firstE === document.activeElement;
-          tabCreekSteps = isActiveLastE ? 1 : 3; // 若已聚焦，则只需一步，即 focusout；否则要 focusout（当前元素）-> focusin（尾巴）-> focusout（尾巴）
-          // 聚焦
-          firstE.focus();
-          updateCurrentList(null);
-          curListInfo.entered = false;
-          updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
-          onExit?.({ e });
+          backwardTabCreek(onExit, () => isCreekExit = true);
         } else {
           Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
             lastActivity = "NAV_BACKWARD";
@@ -260,27 +229,80 @@ function focuz(config) {
     else if (isRangeList) {
       if (isTabForward(e)) {
         const rangeTailTarget = tabPortal.get(selector);
-        if (rangeTailTarget != null) e.preventDefault(); // 阻止默认行为
+        if (rangeTailTarget != null) {
+          // 溯溪需要允许默认行为，而非溯溪则是正常的导航，要阻止默认的 tab 聚焦行为
+          if (!curListInfo.tabCreekExit) e.preventDefault(); // 阻止默认行为
+        }
         else lastActivity = "NAV_FORWARD"; // 在范围列表的中间部分，聚焦不是主动用 `.focus()` 指定的，因此可以立即赋值，同时这里和下面的 NAV_BACKWARD 赋值时机也为了兼容测试工具，测试工具也许因为通过非原生方式触发事件，由于事件循环，将导致在 focusout 事件中触发退出列表
-        Promise.resolve(curListInfo.on?.({ e })).then(_ => {
-          if (rangeTailTarget != null) {
-            lastActivity = "NAV_FORWARD";
-            document.querySelector(rangeTailTarget).focus(); // 聚焦
-          }
-        });
 
+        if (curListInfo.tabCreekExit && rangeTailTarget != null) {
+          forwardTabCreek(curListInfo.onExit);
+        } else {
+          Promise.resolve(curListInfo.on?.({ e })).then(_ => {
+            if (rangeTailTarget != null) {
+              lastActivity = "NAV_FORWARD";
+              document.querySelector(rangeTailTarget).focus(); // 聚焦
+            }
+          });
+        }
       }
       if (isTabBackward(e)) {
         const rangeHeadTarget = shiftTabPortal.get(selector);
         if (rangeHeadTarget != null) e.preventDefault();
         else lastActivity = "NAV_BACKWARD";
-        Promise.resolve(curListInfo.on?.({ e })).then(_ => {
-          if (rangeHeadTarget != null) {
-            lastActivity = "NAV_BACKWARD";
-            document.querySelector(rangeHeadTarget).focus(); // 聚焦
-          }
-        });
+
+        if (curListInfo.tabCreekExit && rangeHeadTarget != null) {
+          backwardTabCreek(curListInfo.onExit);
+        } else {
+          Promise.resolve(curListInfo.on?.({ e })).then(_ => {
+            if (rangeHeadTarget != null) {
+              lastActivity = "NAV_BACKWARD";
+              document.querySelector(rangeHeadTarget).focus(); // 聚焦
+            }
+          });
+        }
       }
+    }
+
+    /** 向尾巴的后面溯溪 */
+    function forwardTabCreek(onExit, setIsCreekExit) {
+      setIsCreekExit?.();
+      lastActivity = "TAB_CREEK";
+      // 获取最后一个元素
+      const lastE = document.querySelector(curListInfo.wrap).lastElementChild;
+      const isActiveLastE = lastE === document.activeElement;
+      tabCreekSteps = isActiveLastE ? 1 : 3; // 若已聚焦（当前元素刚好是最后一个元素），则只需一步，即 focusout；否则要 focusout（当前元素）-> focusin（尾巴）-> focusout（尾巴）
+      const originTabI = lastE.getAttribute("tabindex");
+      // 设置最后一个元素 tabindex
+      if (originTabI == null)
+        lastE.tabIndex = 0;
+      // 聚焦
+      lastE.focus();
+      updateCurrentList(null);
+      curListInfo.entered = false;
+      updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
+      onExit?.({ e });
+      // 下个事件循环删除添加的用于临时聚焦的 tabindex
+      setTimeout(() => {
+        if (originTabI == null)
+          lastE.removeAttribute("tabindex");
+      }, 0);
+    }
+
+    /** 向头部之前溯溪 */
+    function backwardTabCreek(onExit, setIsCreekExit) {
+      setIsCreekExit?.();
+      lastActivity = "TAB_CREEK";
+      // 获取第一个元素
+      const firstE = document.querySelector(curListInfo.wrap);
+      const isActiveLastE = firstE === document.activeElement;
+      tabCreekSteps = isActiveLastE ? 1 : 3; // 若已聚焦，则只需一步，即 focusout；否则要 focusout（当前元素）-> focusin（尾巴）-> focusout（尾巴）
+      // 聚焦
+      firstE.focus();
+      updateCurrentList(null);
+      curListInfo.entered = false;
+      updateListWrap(delayWrapList, listWrapInfo, listsFocusInfo, entriesFocusInfo);
+      onExit?.({ e });
     }
   });
 
