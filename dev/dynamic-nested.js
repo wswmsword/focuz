@@ -1,17 +1,16 @@
 const dz = focuz({
   root: "#dynamic-list",
   id: "more-items",
-  entry: "#d-l-entry",
   exit: {
-    esc: true,
-    outlist: true,
+    type: ["esc", "outlist", "tab-creek"],
   },
-  list: ["#d-list-item1-entry", "#list-more"],
+  list: ["#item1-content", "#list-more"],
   sub: {
-    entry: "#d-list-item1-entry",
+    entry: {
+      cover: "#item1-content",
+    },
     exit: {
-      esc: true,
-      outlist: true,
+      type: ["esc", "outlist"],
     },
     list: ["#d-list-item1-content-b1", "#d-list-item1-content-b2"],
   },
@@ -24,14 +23,8 @@ listMoreBtn.addEventListener("click", loadMore);
 
 function loadMore() {
   const nextSubLength = document.getElementById("d-list-items-wrap").children.length + 1;
-  const listItem = document.createElement("div");
-  listItem.classList.add("d-list-item");
-  listItem.id = "d-list-item" + nextSubLength;
-  const entry = document.createElement("button");
-  entry.id = "d-list-item" + nextSubLength + "-entry";
-  entry.innerText = "d-list" + nextSubLength + " item entry";
   const itemContent = document.createElement("div");
-  itemContent.tabIndex = -1;
+  itemContent.tabIndex = 0;
   itemContent.id = "item" + nextSubLength + "-content";
   const contentBtn1 = document.createElement("button");
   contentBtn1.id = "d-list-item" + nextSubLength + "-content-b1";
@@ -42,15 +35,15 @@ function loadMore() {
 
   itemContent.appendChild(contentBtn1);
   itemContent.appendChild(contentBtn2);
-  listItem.appendChild(entry);
-  listItem.appendChild(itemContent);
-  listMoreWrap.appendChild(listItem);
+  listMoreWrap.appendChild(itemContent);
 
   dz.update("more-items", oldConfig => ({
     ...oldConfig,
-    list: oldConfig.list.toSpliced(-1, 0, `#d-list-item${nextSubLength}-entry`),
+    list: oldConfig.list.toSpliced(-1, 0, `#item${nextSubLength}-content`),
     sub: [].concat(oldConfig.sub, {
-      entry: `#d-list-item${nextSubLength}-entry`,
+      entry: {
+        cover: `#item${nextSubLength}-content`,
+      },
       exit: {
         esc: true,
         outlist: true,

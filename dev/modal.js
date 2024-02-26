@@ -6,8 +6,7 @@ focuz({
   },
   exit: ["#close-modal-btn", {
     on: removeModal,
-    esc: true,
-    outlist: true,
+    type: ["esc", "outlist"],
   }],
   list: ["#confirm-modal-btn", "#close-modal-btn"],
 });

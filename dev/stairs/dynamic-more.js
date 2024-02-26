@@ -19,8 +19,7 @@ function moreItems() {
     entry: "#en7",
     exit: {
       node: "#dli1",
-      esc: true,
-      outlist: true,
+      type: ["esc", "outlist"],
     },
     list: btnIds,
   });
