@@ -72,10 +72,12 @@ function focuz(config) {
       if (currentList != null) {
         const listInfo = listsFocusInfo.get(currentList);
         if (listInfo.disableAuto) return;
-        if (listInfo.escExit) {
-          const { parentList, entry, exitDelay, onExit } = listInfo;
-          delayToProcessWithCondition(exitDelay, () => {
-            Promise.resolve(onExit?.({ e })).then(_ => {
+        const hasEscExit = !!listInfo.escExit;
+        if (hasEscExit) {
+          const { delay, on } = listInfo.escExit;
+          const { parentList, entry } = listInfo;
+          delayToProcessWithCondition(delay, () => {
+            Promise.resolve(on?.({ e })).then(_ => {
               lastActivity = "ESC_EXIT";
               exitToTarget(parentList, entry, listInfo);
             });
@@ -180,7 +182,7 @@ function focuz(config) {
     // 当前在列表（列表为序列模式）
     if (isSequenceList) {
       const itemsLen = currentList.length;
-      const { lastFocusIdx: _lfi, initFocusIdx, forwardKey, backwardKey, on, onExit } = curListInfo;
+      const { lastFocusIdx: _lfi, initFocusIdx, forwardKey, backwardKey, on } = curListInfo;
       const lastFocusIdx = getNextIdxByLastFocusIdxAndInitFocusIdx(_lfi, initFocusIdx, itemsLen);
       let isCreekExit = false; // 溯溪出口吗
       if (forwardKey(e)) {
@@ -188,10 +190,10 @@ function focuz(config) {
         const nextFocusIdx = (lastFocusIdx + (isSequenceListItem ? 1 : 0)) % itemsLen;
         const tabForward = isTabForward(e); // 是否通过 tab 前进
         // 溯溪到列表最后一个元素之后
-        if (curListInfo.tabCreekExit &&
+        if (!!curListInfo.tabCreekExit &&
           ((tabForward && nextFocusIdx === 0) || // 在尾巴生效
             !tabForward)) { // 在任何位置生效
-          forwardTabCreek(onExit, () => isCreekExit = true);
+          forwardTabCreek(curListInfo.tabCreekExit.on, () => isCreekExit = true);
         } else {
           Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
             lastActivity = "NAV_FORWARD";
@@ -203,10 +205,10 @@ function focuz(config) {
         const nextFocusIdx = (lastFocusIdx - 1 + itemsLen) % itemsLen;
         const tabBackward = isTabBackward(e); // 是否通过 tab 后退
         // 溯溪到列表头部元素前面
-        if (curListInfo.tabCreekExit &&
+        if (!!curListInfo.tabCreekExit &&
           ((tabBackward && nextFocusIdx === itemsLen - 1) || // 在头部生效
             !tabBackward)) { // 在任何位置生效
-          backwardTabCreek(onExit, () => isCreekExit = true);
+          backwardTabCreek(curListInfo.tabCreekExit.on, () => isCreekExit = true);
         } else {
           Promise.resolve(on?.({ e, prevI: _lfi, curI: nextFocusIdx })).then(_ => {
             lastActivity = "NAV_BACKWARD";
@@ -235,8 +237,8 @@ function focuz(config) {
         }
         else lastActivity = "NAV_FORWARD"; // 在范围列表的中间部分，聚焦不是主动用 `.focus()` 指定的，因此可以立即赋值，同时这里和下面的 NAV_BACKWARD 赋值时机也为了兼容测试工具，测试工具也许因为通过非原生方式触发事件，由于事件循环，将导致在 focusout 事件中触发退出列表
 
-        if (curListInfo.tabCreekExit && rangeTailTarget != null) {
-          forwardTabCreek(curListInfo.onExit);
+        if (!!curListInfo.tabCreekExit && rangeTailTarget != null) {
+          forwardTabCreek(curListInfo.tabCreekExit.on);
         } else {
           Promise.resolve(curListInfo.on?.({ e })).then(_ => {
             if (rangeTailTarget != null) {
@@ -251,8 +253,8 @@ function focuz(config) {
         if (rangeHeadTarget != null) e.preventDefault();
         else lastActivity = "NAV_BACKWARD";
 
-        if (curListInfo.tabCreekExit && rangeHeadTarget != null) {
-          backwardTabCreek(curListInfo.onExit);
+        if (!!curListInfo.tabCreekExit && rangeHeadTarget != null) {
+          backwardTabCreek(curListInfo.tabCreekExit.on);
         } else {
           Promise.resolve(curListInfo.on?.({ e })).then(_ => {
             if (rangeHeadTarget != null) {
@@ -424,11 +426,12 @@ function focuz(config) {
       if (listInfo == null) return;
       if (listInfo.disableAuto) return ;
       // 失焦元素是列表元素，并且有 outlist 退出类型
-      if (listInfo.outlistExit) {
-
-        const { parentList, entry, exitDelay, onExit } = listInfo;
-        delayToProcessWithCondition(exitDelay, () => {
-          Promise.resolve(onExit?.({ e })).then(_ => {
+      const hasOutlistExit = !!listInfo.outlistExit;
+      if (hasOutlistExit) {
+        const { delay, on } = listInfo.outlistExit;
+        const { parentList, entry } = listInfo;
+        delayToProcessWithCondition(delay, () => {
+          Promise.resolve(on?.({ e })).then(_ => {
             lastActivity = "LAYER_EXIT";
             exitToTarget(parentList, entry, listInfo);
           });
@@ -818,8 +821,8 @@ function generateFocusData(obj) {
       /** 记录作用在所有出口上的属性 */
       let exitGlobal = {};
       for(const exit of exits) {
-        const { node, delay, manual, key, on } = exit;
-        if (node == null) {
+        const { node, type, delay, manual, key, on } = exit;
+        if (node == null && type == null) {
           exitGlobal = { delay, manual, key, on };
           break;
         }
@@ -828,12 +831,16 @@ function generateFocusData(obj) {
       let outlistExit = false;
       let escapeExit = false;
       let tabCreekExit = false;
-      exits.forEach(({ node, delay, manual, outlist, esc, key, on, tabCreek }) => {
-        if (outlist != null) outlistExit = outlist;
-        if (esc != null) escapeExit = esc;
-        if (tabCreek != null) tabCreekExit = tabCreek;
-        if (node == null) return ;
+      exits.forEach(({ node, delay, manual, key, on, type }) => {
         const { delay: gd, manual: gm, key: gk, on: go } = exitGlobal;
+        const types = [].concat(type); // 转为数组的类型
+        if (types.includes("outlist"))
+          outlistExit = { delay: delay == null ? gd : delay, on: on == null ? go : on };
+        if (types.includes("esc"))
+          escapeExit = { delay: delay == null ? gd : delay, on: on == null ? go : on };
+        if (types.includes("tab-creek"))
+          tabCreekExit = { delay: delay == null ? gd : delay, on: on == null ? go : on };
+        if (node == null) return ;
         exitsFocusInfo.set(node, {
           delay: delay == null ? gd : delay,
           parentList,
