@@ -7,7 +7,8 @@ const dz = focuz({
   list: ["#item1-content", "#list-more"],
   sub: {
     entry: {
-      cover: "#item1-content",
+      type: "cover",
+      node: "#item1-content",
     },
     exit: {
       type: ["esc", "outlist"],
@@ -42,7 +43,8 @@ function loadMore() {
     list: oldConfig.list.toSpliced(-1, 0, `#item${nextSubLength}-content`),
     sub: [].concat(oldConfig.sub, {
       entry: {
-        cover: `#item${nextSubLength}-content`,
+        type: "cover",
+        node: `#item${nextSubLength}-content`,
       },
       exit: {
         esc: true,

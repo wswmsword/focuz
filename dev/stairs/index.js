@@ -1,8 +1,8 @@
 const z = focuz({
   root: "#app",
   entry: {
+    type: "toggle",
     node: "#en1",
-    toggle: true,
   },
   exit: {
     node: "#ex1",
@@ -65,9 +65,12 @@ const z = focuz({
         sub: {
           entry: {
             node: "#en6",
-            manual: true,
+            type: "manual",
           },
-          exit: ["#ex6", { manual: true }],
+          exit: {
+            node: "#ex6",
+            type: "manual",
+          },
           list: ["#i6_1", "#i6_2", "#ex6"],
         }
       }]
