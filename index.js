@@ -821,9 +821,9 @@ function generateFocusData(obj) {
       /** 记录作用在所有出口上的属性 */
       let exitGlobal = {};
       for(const exit of exits) {
-        const { node, type, delay, manual, key, on } = exit;
+        const { node, type, delay, key, on } = exit;
         if (node == null && type == null) {
-          exitGlobal = { delay, manual, key, on };
+          exitGlobal = { delay, key, on };
           break;
         }
       }
@@ -831,25 +831,29 @@ function generateFocusData(obj) {
       let outlistExit = false;
       let escapeExit = false;
       let tabCreekExit = false;
-      exits.forEach(({ node, delay, manual, key, on, type }) => {
-        const { delay: gd, manual: gm, key: gk, on: go } = exitGlobal;
+      exits.forEach(({ node, delay, key, on, type }) => {
+        const { delay: gd, key: gk, on: go } = exitGlobal;
         const types = [].concat(type); // 转为数组的类型
         if (types.includes("outlist"))
-          outlistExit = { delay: delay == null ? gd : delay, on: on == null ? go : on };
+          outlistExit = expectedOrGlobalExitInfo();
         if (types.includes("esc"))
-          escapeExit = { delay: delay == null ? gd : delay, on: on == null ? go : on };
+          escapeExit = expectedOrGlobalExitInfo();
         if (types.includes("tab-creek"))
-          tabCreekExit = { delay: delay == null ? gd : delay, on: on == null ? go : on };
+          tabCreekExit = expectedOrGlobalExitInfo();
         if (node == null) return ;
         exitsFocusInfo.set(node, {
           delay: delay == null ? gd : delay,
           parentList,
           list: pureList,
-          disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的出口
+          disableAuto: types.includes("manual"), // 是否关闭由事件触发的出口
           target: oneEntryNode, // 出口目标
           key: key || gk || isEnterEvent, // 从出口回到入口的按键
           on: on || go,
         });
+        /** 返回指定值，或者返回全局值 */
+        function expectedOrGlobalExitInfo() {
+          return { delay: delay == null ? gd : delay, on: on == null ? go : on };
+        }
       });
       (isHotConfig ? hotListsFocusInfo : coldListsFocusInfo).set(pureList, {
         initFocusIdx: initActive, // 首次聚焦元素 id
