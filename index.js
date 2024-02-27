@@ -758,27 +758,34 @@ function generateFocusData(obj) {
 
       /** 记录作用在所有入口上的属性 */
       let entryGlobal = {};
+      /** 封面入口 */
       let coverEntry;
+      /** 是否有封面入口？ */
+      let hasCoverEntry = false;
       for(const entry of entries) {
-        const { node, delay, toggle, manual, key, on, cover } = entry;
-        if (cover != null) coverEntry = cover;
-        if (node == null) {
-          entryGlobal = { delay, toggle, manual, key, on };
+        const { node, delay, key, on, type } = entry;
+        const types = [].concat(type);
+        if (types.includes("cover")) {
+          hasCoverEntry = true;
+          coverEntry = node;
+        }
+        if (node == null && type == null) {
+          entryGlobal = { delay, key, on };
           break;
-        } else oneEntryNode = node;
+        } else if (node != null) oneEntryNode = node;
       }
 
       const listWrap = (() => {
         if (listWrapByConfig == null) {
-          const coverEntryRes = coverEntry === true ? null : coverEntry;
-          if (coverEntryRes != null) return coverEntryRes;
-          return findLowestCommonAncestorNodeByList(pureList);
+          return coverEntry != null ?
+            coverEntry :
+            findLowestCommonAncestorNodeByList(pureList);
         }
         return listWrapByConfig;
       })();
       // 若是不能找到包裹，则先推入队列，后续触发入口或出口时再寻找
       if (listWrap == null) delayWrapList.push(pureList);
-      else if (coverEntry === true) coverEntry = listWrap;
+      else if (hasCoverEntry && coverEntry == null) coverEntry = listWrap;
       if (oneEntryNode == null) oneEntryNode = coverEntry;
       let lastFocusIdxFromHotList = -1;
       let enteredList = false;
@@ -801,27 +808,27 @@ function generateFocusData(obj) {
       if (firstEntry == null) firstEntry = oneEntryNode;
       const entriesFocusInfo = isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo;
 
-      const immediateCoverEntry = coverEntry != null && coverEntry !== true;
-      entries.forEach(({ node, delay, toggle, manual, key, on, cover }) => {
+      const immediateCoverEntry = coverEntry != null;
+      entries.forEach(({ node, delay, key, on, cover, type }) => {
+        const types = [].concat(type);
         if (node == null && cover == null) return ;
-        const { delay: gd, toggle: dt, manual: gm, key: gk, on: go } = entryGlobal
+        const { delay: gd, key: gk, on: go } = entryGlobal
         const info = {
           delay: delay == null ? gd : delay,
-          toggleEntry: toggle == null ? dt : toggle, // 该入口是否同时支持退出？
+          toggleEntry: types.includes("toggle"), // 该入口是否同时支持退出？
           parentList,
-          disableAuto: manual == null ? gm : manual, // 是否关闭由事件触发的入口
+          disableAuto: types.includes("manual"), // 是否关闭由事件触发的入口
           target: pureList, // 入口目标
           key: key || gk || isEnterEvent, // 从入口进入列表的按键
           on: on || go,
         };
         if (node) entriesFocusInfo.set(node, info);
         if (immediateCoverEntry) entriesFocusInfo.set(coverEntry, info);
-        else if (coverEntry === true) delayCoverEntriesInfo.set(pureList, info);
+        else if (hasCoverEntry && coverEntry == null) delayCoverEntriesInfo.set(pureList, info);
       });
       /** 记录作用在所有出口上的属性 */
       let exitGlobal = {};
-      for(const exit of exits) {
-        const { node, type, delay, key, on } = exit;
+      for(const { node, type, delay, key, on } of exits) {
         if (node == null && type == null) {
           exitGlobal = { delay, key, on };
           break;
