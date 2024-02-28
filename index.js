@@ -823,8 +823,10 @@ function generateFocusData(obj) {
           on: on || go,
         };
         if (node) entriesFocusInfo.set(node, info);
-        if (immediateCoverEntry) entriesFocusInfo.set(coverEntry, info);
-        else if (hasCoverEntry && coverEntry == null) delayCoverEntriesInfo.set(pureList, info);
+        if (types.includes("cover")) { // 入口中是否有封面类型
+          if (immediateCoverEntry) entriesFocusInfo.set(coverEntry, info);
+          else if (hasCoverEntry && coverEntry == null) delayCoverEntriesInfo.set(pureList, info);
+        }
       });
       /** 记录作用在所有出口上的属性 */
       let exitGlobal = {};
