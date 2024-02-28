@@ -809,10 +809,9 @@ function generateFocusData(obj) {
       const entriesFocusInfo = isHotConfig ? hotEntriesFocusInfo : coldEntriesFocusInfo;
 
       const immediateCoverEntry = coverEntry != null;
-      entries.forEach(({ node, delay, key, on, cover, type }) => {
+      entries.forEach(({ node, delay, key, on, type }) => {
         const types = [].concat(type);
-        if (node == null && cover == null) return ;
-        const { delay: gd, key: gk, on: go } = entryGlobal
+        const { delay: gd, key: gk, on: go } = entryGlobal;
         const info = {
           delay: delay == null ? gd : delay,
           toggleEntry: types.includes("toggle"), // 该入口是否同时支持退出？
