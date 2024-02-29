@@ -39,14 +39,23 @@ TODO:
   "root": "#app",
   "entry": "#en1",
   "exit": "#ex1",
-  "list": ["#i1", "#i2", {
-    "entry": "#en2",
+  "list": [
+    "#i1",
+    "#i2",
+    "#i3"
+  ],
+  "sub": {
+    "entry": "en2",
     "exit": "#ex2",
-    "list": ["#i3"]
-  }]
+    "list": {
+      "nodes": ["#i_start", "#i_end"],
+      "range": true
+    }
+  }
 }
 ```
 
+<!--
 多组情况，类似如下：
 
 ```javascript
@@ -59,4 +68,4 @@ focuz(root, [{
   exit,
   list
 }]);
-```
+```-->
