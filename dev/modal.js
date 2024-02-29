@@ -4,10 +4,11 @@ focuz({
     node: "#modal-g",
     on: genModal,
   },
-  exit: ["#close-modal-btn", {
+  exit: {
+    node: "#close-modal-btn",
+    type: ["click", "keydown", "esc", "outlist"],
     on: removeModal,
-    type: ["esc", "outlist"],
-  }],
+  },
   list: ["#confirm-modal-btn", "#close-modal-btn"],
 });
 

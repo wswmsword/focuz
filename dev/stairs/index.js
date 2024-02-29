@@ -1,13 +1,12 @@
 const z = focuz({
   root: "#app",
   entry: {
-    type: "toggle",
+    type: ["click", "keydown", "toggle"],
     node: "#en1",
   },
-  exit: {
-    node: "#ex1",
+  exit: ["#ex1", {
     type: ["esc", "outlist"],
-  },
+  }],
   list: {
     nodes: ["#i1_1", "#ex1", "#en2"],
     initActive: 1,
@@ -20,7 +19,7 @@ const z = focuz({
     exit: {
       node: "#ex2",
       delay: 386,
-      type: ["esc", "outlist"],
+      type: ["click", "keydown", "esc", "outlist"],
     },
     list: {
       nodes: ["#i2_1", "#en3_2"],
@@ -30,7 +29,7 @@ const z = focuz({
       entry: ["#en3", "#en3_2"],
       exit: {
         node: ["#ex3", "#ex3_2"],
-        type: "esc",
+        type: ["click", "keydown", "esc"],
       },
       list: {
         nodes: ["#en4", "#ex3", "#en5", "#ex3_2"],
@@ -40,7 +39,7 @@ const z = focuz({
         entry: "#en4",
         exit: {
           node: "#ex4",
-          type: ["esc", "outlist"],
+          type: ["click", "keydown", "esc", "outlist"],
         },
         list: {
           nodes: ["#i4_1", "#i4_4"],
@@ -51,7 +50,7 @@ const z = focuz({
           entry: "#en7",
           exit: {
             node: "#dli1",
-            type: ["esc", "outlist"],
+            type: ["click", "keydown", "esc", "outlist"],
           },
           list: ["#dli1", "#dli2", "#dli3", '#more'],
         }
@@ -59,7 +58,7 @@ const z = focuz({
         entry: "#en5",
         exit: {
           node: "#ex5",
-          type: ["esc", "outlist"],
+          type: ["click", "keydown", "esc", "outlist"],
         },
         list: ["#i5_1", "#ex5", "#en6"],
         sub: {

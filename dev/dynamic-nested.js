@@ -2,12 +2,12 @@ const dz = focuz({
   root: "#dynamic-list",
   id: "more-items",
   exit: {
-    type: ["esc", "outlist", "tab-creek"],
+    type: "tab-creek",
   },
   list: ["#item1-content", "#list-more"],
   sub: {
     entry: {
-      type: "cover",
+      type: ["cover", "keydown"],
       node: "#item1-content",
     },
     exit: {
@@ -43,12 +43,11 @@ function loadMore() {
     list: oldConfig.list.toSpliced(-1, 0, `#item${nextSubLength}-content`),
     sub: [].concat(oldConfig.sub, {
       entry: {
-        type: "cover",
+        type: ["cover", "keydown"],
         node: `#item${nextSubLength}-content`,
       },
       exit: {
-        esc: true,
-        outlist: true,
+        type: ["esc", "outlist"],
       },
       list: [`#d-list-item${nextSubLength}-content-b1`, `#d-list-item${nextSubLength}-content-b2`],
     }),
