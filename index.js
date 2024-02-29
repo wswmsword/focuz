@@ -94,7 +94,7 @@ function focuz(config) {
       // 按下 Enter
       if (entryFocusInfo.key(e)) {
         // 禁止事件入口
-        if (entryFocusInfo.disableAuto) return;
+        if (entryFocusInfo.disableAuto || !entryFocusInfo.enableKeydown) return;
         const { delay, toggleEntry, target, on } = entryFocusInfo;
         const listFocusInfo = listsFocusInfo.get(target);
         const { entered, onExit } = listFocusInfo;
@@ -129,7 +129,7 @@ function focuz(config) {
       // 按下 Enter
       if (exitFocusInfo.key(e)) {
         // 禁止事件出口
-        if (exitFocusInfo.disableAuto) return;
+        if (exitFocusInfo.disableAuto || !exitFocusInfo.enableKeydown) return;
         e.preventDefault();
         const { delay, on, list } = exitFocusInfo;
         delayToProcessWithCondition(delay, () => {
@@ -315,11 +315,11 @@ function focuz(config) {
     const entryFocusInfo = entriesFocusInfo.get(selector);
     const isEntry = entryFocusInfo != null;
     if (isEntry) {
-      const { delay, toggleEntry, target, on } = entryFocusInfo;
+      const { delay, toggleEntry, target, on, disableAuto, enableClick } = entryFocusInfo;
       const listFocusInfo = listsFocusInfo.get(target);
       const { entered, onExit } = listFocusInfo;
-      // 禁止事件入口
-      if (entryFocusInfo.disableAuto) return;
+      // 禁止事件入口 或 无点击类型
+      if (disableAuto || !enableClick) return;
       delayToProcessWithCondition(delay, () => {
         if (toggleEntry && entered) {
           Promise.resolve(onExit?.({ e })).then(_ => {
@@ -343,9 +343,9 @@ function focuz(config) {
       return exitFocusInfo != null;
     })();
     if (isExit) {
-      const { delay, disableAuto, list, on } = exitFocusInfo;
-      // 禁止事件出口
-      if (disableAuto) return;
+      const { delay, disableAuto, list, on, enableClick } = exitFocusInfo;
+      // 禁止事件出口 或 无点击类型
+      if (disableAuto || !enableClick) return;
       delayToProcessWithCondition(delay, () => {
         Promise.resolve(on?.({ e })).then(_ => {
           lastActivity = "CLICK_EXIT";
@@ -810,13 +810,16 @@ function generateFocusData(obj) {
 
       const immediateCoverEntry = coverEntry != null;
       entries.forEach(({ node, delay, key, on, type }) => {
-        const types = [].concat(type);
+        const useDefaultTypes = node != null && type == null; // 是否使用默认的类型
+        const types = useDefaultTypes ? ["click", "keydown"] : [].concat(type);
         const { delay: gd, key: gk, on: go } = entryGlobal;
         const info = {
           delay: delay == null ? gd : delay,
           toggleEntry: types.includes("toggle"), // 该入口是否同时支持退出？
           parentList,
           disableAuto: types.includes("manual"), // 是否关闭由事件触发的入口
+          enableClick: types.includes("click"),
+          enableKeydown: types.includes("keydown"),
           target: pureList, // 入口目标
           key: key || gk || isEnterEvent, // 从入口进入列表的按键
           on: on || go,
@@ -841,7 +844,8 @@ function generateFocusData(obj) {
       let tabCreekExit = false;
       exits.forEach(({ node, delay, key, on, type }) => {
         const { delay: gd, key: gk, on: go } = exitGlobal;
-        const types = [].concat(type); // 转为数组的类型
+        const useDefaultTypes = node != null && type == null; // 是否使用默认的类型
+        const types = useDefaultTypes ? ["click", "keydown"] : [].concat(type); // 转为数组的类型
         if (types.includes("outlist"))
           outlistExit = expectedOrGlobalExitInfo();
         if (types.includes("esc"))
@@ -854,6 +858,8 @@ function generateFocusData(obj) {
           parentList,
           list: pureList,
           disableAuto: types.includes("manual"), // 是否关闭由事件触发的出口
+          enableClick: types.includes("click"),
+          enableKeydown: types.includes("keydown"),
           target: oneEntryNode, // 出口目标
           key: key || gk || isEnterEvent, // 从出口回到入口的按键
           on: on || go,
