@@ -818,8 +818,8 @@ function generateFocusData(obj) {
           toggleEntry: types.includes("toggle"), // 该入口是否同时支持退出？
           parentList,
           disableAuto: types.includes("manual"), // 是否关闭由事件触发的入口
-          enableClick: types.includes("click"),
-          enableKeydown: types.includes("keydown"),
+          enableClick: types.includes("click") || types.includes("toggle"),
+          enableKeydown: types.includes("keydown") || types.includes("cover"),
           target: pureList, // 入口目标
           key: key || gk || isEnterEvent, // 从入口进入列表的按键
           on: on || go,
