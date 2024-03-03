@@ -1,7 +1,7 @@
 const z = focuz({
   root: "#app",
   entry: {
-    type: ["click", "keydown", "toggle"],
+    type: ["keydown", "toggle"],
     node: "#en1",
   },
   exit: ["#ex1", {
