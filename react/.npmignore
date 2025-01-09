@@ -1,0 +1,11 @@
+.gitignore
+npm-debug.log*
+node_modules
+spec
+package-lock.json
+examples
+images
+tests
+test-results
+playwright-report
+playwright
